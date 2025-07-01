@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import "../css/checkout.css";
 
 const CheckoutPage = () => {
+    const{ storedTotal } = useParams();
+    console.log(storedTotal);
     const [grandTotal, setGrandTotal] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState("cash");
     const [address, setAddress] = useState({
@@ -16,7 +18,6 @@ const CheckoutPage = () => {
 
     // Get grandTotal from localStorage
     useEffect(() => {
-        const storedTotal = localStorage.getItem("grandTotal");
         if (storedTotal) {
             setGrandTotal(parseFloat(storedTotal));
         }

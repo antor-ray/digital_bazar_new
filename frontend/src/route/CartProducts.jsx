@@ -113,7 +113,7 @@ const CartProducts = () => {
 
           <div className="cart-summary">
             <h3>Grand Total: ৳{grandTotal}</h3>
-            <button className="checkout-btn" onClick={() => navigate("/checkout")}>
+            <button className="checkout-btn" onClick={() => navigate(`/checkout/${grandTotal}`)}>
               Checkout
             </button>
           </div>

@@ -20,6 +20,7 @@ app.use(
 app.use(express.json());
 
 const cookieParser = require("cookie-parser");
+const isAuthenticatedDeliveryMan = require("./middleware/isAuthenticatedDeliveryMan");
 app.use(cookieParser());
 
 app.post("/login", async (req, res) => {
@@ -123,6 +124,107 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+//Delivery Man Login
+app.post("/DeliveryManlogin", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await db.query(
+      "SELECT * FROM delivery_man WHERE email = $1 AND password = $2",
+      [email, password]
+    );
+    console.log(result.rows[0]);
+    if (result.rows.length <= 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+    let tokenData = {
+      deliveryMan_id: result.rows[0].id,
+    };
+    console.log(deliveryMan_id);
+    // const newTokenData == append role here and pass it into jwt
+
+    const secretkey = process.env.JWT_SECRET_KEY;
+    const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
+
+    return res
+      .cookie("token", token, {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .status(200)
+      .json({
+        customer: result.rows[0],
+        token: token,
+      });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  res.json({ message: "Logged out successfully" });
+});
+
+app.get("/isAuthenticate", isAuthenticatedDeliveryMan, async (req, res) => {
+  res.json({ message: "You are logged in", customer_id: req.customer_id });
+});
+
+app.post("/registerDeliveryMan", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone_number,
+      region,
+      city,
+      password
+    } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !phone_number ||
+      !region ||
+      !city 
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const newCustomer = await db.query(
+      "INSERT INTO delivery_man (name,email,phone_number,region,city,password) VALUES ($1, $2, $3, $4, $5,$6) RETURNING *",
+      [
+        name,
+        email,
+        phone_number,
+        region,
+        city,
+        password
+      ]
+    );
+
+    res
+      .status(201)
+      .json({
+        message: "Delivery Man registered successfully",
+        customer: newCustomer.rows[0],
+      });
+  } catch (err) {
+    console.error("Error registering Delivery man:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+//
+
 
 app.get("/api/v1/products", async (req, res) => {
   try {
@@ -445,8 +547,8 @@ app.post("/ssl-request", async (req, res) => {
 
 
 app.post("/ssl-payment-success", async (req, res) => {
- // console.log("Payment success:", req.body);
-  return res.redirect("http://localhost:3000"); // your React home page
+  //console.log("Payment success:", req.body);
+  return res.redirect("http://localhost:3000/paymentPage"); // your React home page
 });
 
 

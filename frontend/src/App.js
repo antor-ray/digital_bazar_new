@@ -11,6 +11,9 @@ import SellerAuth from './route/SellerLogin';
 import WishlistPage from './route/WishList';
 import SellerDashboard from './route/SellerPage';
 import CheckoutPage from './route/CheckoutPage';
+import PaymentSuccess from './route/PaymentSuccess';
+import DeliveryManLogin from './route/DeliveryManLogin';
+import DeliveryManRegistration from './route/DeliveryManRegistration';
 
 const App = () => {
   return (
@@ -25,9 +28,12 @@ const App = () => {
           <Route path="/CartItems" element={<CartProducts/>}/>
           <Route path="/CategoryPage/:categoryName" element={<CategoryPage/>}/>
           <Route path="/SellerLogin" element ={<SellerAuth/>}/>
+          <Route path='/DeliveryManLogin' element={<DeliveryManLogin/>}/>
+          <Route path='/registerDeliveryMan' element={<DeliveryManRegistration/>}/>
           <Route path="/WishList" element ={<WishlistPage/>}/>
           <Route path="/SellerPage" element ={<SellerDashboard/>}/>
-          <Route path='/checkout' element={<CheckoutPage/>}/>
+          <Route path='/checkout/:storedTotal' element={<CheckoutPage/>}/>
+          <Route path='/paymentPage' element={<PaymentSuccess/>}/>
         </Routes>
       </Router>
     </div>
