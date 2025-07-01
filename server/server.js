@@ -3,6 +3,8 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+const SSLCommerzPayment = require('sslcommerz-lts');
 
 const db = require("./db");
 const { message } = require("statuses");
@@ -367,6 +369,108 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res)=>{
     res.status(500).json({ message: "Failed to fetch wishlist" });
   }
 })
+
+
+
+//payment method
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
+
+app.use(bodyParser.json());
+
+app.post("/ssl-request", async (req, res) => {
+  try {
+    const { amount, address } = req.body;
+
+    if (!amount || !address?.city || !address?.region || !address?.roadSector) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const data = {
+      total_amount: amount,
+      currency: 'BDT',
+      tran_id: 'TRX_' + Date.now(),
+      success_url: 'http://localhost:4000/ssl-payment-success',
+      fail_url: 'http://localhost:4000/ssl-payment-fail',
+      cancel_url: 'http://localhost:4000/ssl-payment-cancel',
+      ipn_url: 'http://localhost:4000/ssl-payment-ipn',
+      shipping_method: 'Courier',
+      product_name: 'Checkout Order',
+      product_category: 'Ecommerce',
+      product_profile: 'general',
+      cus_name: 'Customer Name',
+      cus_email: 'customer@example.com',
+      cus_add1: address.roadSector || 'Default Road',
+      cus_add2: address.region || 'Default Region',
+      cus_city: address.city || 'Default City',
+      cus_state: 'State',
+      cus_postcode: '1200',
+      cus_country: 'Bangladesh',
+      cus_phone: '01700000000',
+      cus_fax: '01700000000',
+      ship_name: 'Customer Name',
+      ship_add1: address.roadSector || 'Default Road',
+      ship_add2: address.region || 'Default Region',
+      ship_city: address.city || 'Default City',
+      ship_state: 'State',
+      ship_postcode: '1200',
+      ship_country: 'Bangladesh',
+    };
+
+    console.log("Sending to SSLCommerz:", data);
+
+    const sslcz = new SSLCommerzPayment(process.env.STORED_ID, process.env.STORED_PASSWORD, false);
+
+    sslcz.init(data).then(apiResponse => {
+      const GatewayPageURL = apiResponse.GatewayPageURL;
+
+      if (GatewayPageURL) {
+        console.log("Redirecting to:", GatewayPageURL);
+        return res.status(200).json({ GatewayPageURL });
+      } else {
+        console.error("No Gateway URL in response");
+        return res.status(500).json({ message: "SSLCommerz failed to generate payment link" });
+      }
+    }).catch(err => {
+      console.error("SSLCommerz error:", err.response?.data || err.message || err);
+      res.status(500).json({ message: "Payment initialization failed", error: err.message });
+    });
+  } catch (err) {
+    console.error("Unexpected error in /ssl-request:", err);
+    res.status(500).json({ message: "Unexpected error" });
+  }
+});
+
+
+
+app.post("/ssl-payment-success", async (req, res) => {
+ // console.log("Payment success:", req.body);
+  return res.redirect("http://localhost:3000"); // your React home page
+});
+
+
+
+app.post("/ssl-payment-fail", async (req, res, next) => {
+  return res.status(404).json({
+    data: req.body
+  })
+});
+
+app.post("/ssl-payment-cancel", async (req, res, next) => {
+  return res.status(200).json({
+    data: req.body
+  })
+});
+
+app.post("/ssl-payment-ipn", async (req, res, next) => {
+  return res.status(200).json({
+    data: req.body
+  })
+});
+
+
+
 
 
 

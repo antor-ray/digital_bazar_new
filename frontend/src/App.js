@@ -10,6 +10,7 @@ import CategoryPage from './route/CategoryPage';
 import SellerAuth from './route/SellerLogin';
 import WishlistPage from './route/WishList';
 import SellerDashboard from './route/SellerPage';
+import CheckoutPage from './route/CheckoutPage';
 
 const App = () => {
   return (
@@ -26,6 +27,7 @@ const App = () => {
           <Route path="/SellerLogin" element ={<SellerAuth/>}/>
           <Route path="/WishList" element ={<WishlistPage/>}/>
           <Route path="/SellerPage" element ={<SellerDashboard/>}/>
+          <Route path='/checkout' element={<CheckoutPage/>}/>
         </Routes>
       </Router>
     </div>
