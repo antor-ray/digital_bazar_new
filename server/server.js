@@ -21,6 +21,7 @@ app.use(express.json());
 
 const cookieParser = require("cookie-parser");
 const isAuthenticatedDeliveryMan = require("./middleware/isAuthenticatedDeliveryMan");
+const authorizeRoles = require("./middleware/authorizeRoles");
 app.use(cookieParser());
 
 app.post("/login", async (req, res) => {
@@ -32,15 +33,12 @@ app.post("/login", async (req, res) => {
       [email, password]
     );
 
-    // if (result.rows.length > 0) {
-    //   res.status(200).json({ customer: result.rows[0] });
-    //   console.log("Login successful:", result.rows[0].customer_id);
-    // } else {
     if (result.rows.length <= 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
     let tokenData = {
       customer_id: result.rows[0].customer_id,
+      role: 'customer',
     };
     // const newTokenData == append role here and pass it into jwt
 
@@ -128,7 +126,7 @@ app.post("/register", async (req, res) => {
 //Delivery Man Login
 app.post("/DeliveryManlogin", async (req, res) => {
   const { email, password } = req.body;
-
+  console.log(email);
   try {
     const result = await db.query(
       "SELECT * FROM delivery_man WHERE email = $1 AND password = $2",
@@ -140,8 +138,9 @@ app.post("/DeliveryManlogin", async (req, res) => {
     }
     let tokenData = {
       deliveryMan_id: result.rows[0].id,
+      role: 'deliveryMan'
     };
-    console.log(deliveryMan_id);
+    // console.log(deliveryMan_id);
     // const newTokenData == append role here and pass it into jwt
 
     const secretkey = process.env.JWT_SECRET_KEY;
@@ -155,7 +154,7 @@ app.post("/DeliveryManlogin", async (req, res) => {
       })
       .status(200)
       .json({
-        customer: result.rows[0],
+        deliveryMan: result.rows[0],
         token: token,
       });
   } catch (err) {
@@ -172,8 +171,8 @@ app.post("/logout", (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-app.get("/isAuthenticate", isAuthenticatedDeliveryMan, async (req, res) => {
-  res.json({ message: "You are logged in", customer_id: req.customer_id });
+app.get("/isAuthenticateDeliveryMan", isAuthenticatedDeliveryMan, async (req, res) => {
+  res.json({ message: "You are logged in", deliveryMan_id: req.deliveryMan_id });
 });
 
 app.post("/registerDeliveryMan", async (req, res) => {
@@ -193,7 +192,7 @@ app.post("/registerDeliveryMan", async (req, res) => {
       !password ||
       !phone_number ||
       !region ||
-      !city 
+      !city
     ) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -256,9 +255,9 @@ app.get("/api/v1/products/:id", async (req, res) => {
   }
 });
 
-app.get("/cartItems", isAuthenticated, async (req, res) => {
+app.get("/cartItems", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   try {
-    const customer_id = req.customer_id;
+    const customer_id = req.user.customer_id;
     console.log(customer_id);
     const cartResult = await db.query(
       "select cart_id from customer where customer_id=$1",
@@ -285,9 +284,9 @@ app.get("/cartItems", isAuthenticated, async (req, res) => {
   }
 });
 
-app.post("/add_to_cart", isAuthenticated, async (req, res) => {
+app.post("/add_to_cart", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.customer_id;
+  const customer_id = req.user.customer_id;
   console.log(customer_id);
   try {
     const cartResult = await db.query(
@@ -327,7 +326,7 @@ app.get("/api/v1/paymentMethods", async (req, res) => {
   }
 });
 
-app.post("/orderItems", async (req, res) => {});
+app.post("/orderItems", async (req, res) => { });
 
 app.get("/categoryProducts/:categoryName", async (req, res) => {
   const categoryName = req.params.categoryName;
@@ -356,10 +355,10 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 
 // for reviews ---------------------------------------------------------------------
 
-app.post("/api/v1/products/:id/reviews", isAuthenticated, async (req, res) => {
+app.post("/api/v1/products/:id/reviews", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const productId = parseInt(req.params.id);
   const { rating, comment } = req.body;
-  const customerId = req.customer_id; // from middleware
+  const customerId = req.user.customer_id; // from middleware
 
   if (!rating || !comment) {
     return res.status(400).json({ error: "Rating and comment are required" });
@@ -415,9 +414,9 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
 
 
 /// add to WishList-------------------------------------------------------------------
-app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
+app.post("/add_to_wishlist", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.customer_id;
+  const customer_id = req.user.customer_id;
   console.log(customer_id);
   try {
     const wishListResult = await db.query(
@@ -446,11 +445,11 @@ app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
 
 // wishlist items fetching-------------------------------
 
-app.get("/api/v1/wishlist", isAuthenticated, async (req, res)=>{
+app.get("/api/v1/wishlist", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const customerId = req.customer_id;
   console.log(customerId);
-  
-    try {
+
+  try {
     const result = await db.query(
       `SELECT 
          p.product_id, 
@@ -461,16 +460,148 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res)=>{
        JOIN wish_item w ON p.product_id = w.product_id
        JOIN image i ON i.product_id = p.product_id
        WHERE w.wishlist_id = $1`,
-       [customerId]
+      [customerId]
     );
-    
+
     console.log(result.rows);
     res.status(200).json({ items: result.rows });
   } catch (err) {
     console.error("Error fetching wishlist:", err);
     res.status(500).json({ message: "Failed to fetch wishlist" });
   }
-})
+});
+
+//order and delivery details:
+
+
+app.post("/api/orders", isAuthenticated, async (req, res) => {
+  const { address, grandTotal, paymentMethod } = req.body;
+  const customerId = req.user.customer_id;
+    try {
+    const orderInsert = await db.query(
+      `INSERT INTO customer_order (customer_id, date, total_cost, address)
+             VALUES ($1, CURRENT_DATE, $2, $3) RETURNING order_id`,
+      [customerId, grandTotal, (address.city || ' '||address.region || ' ' || address.roadSector)]
+    );
+    const orderId = orderInsert.rows[0].order_id;
+
+
+    // Get customer's region
+    // const regionRes = await db.query(
+    //   `SELECT region FROM customer WHERE customer_id = $1`,
+    //   [customerId]
+    // );
+    const region = address.region;
+    // Find deliverymen in that region
+    const deliverymen = await db.query(
+      `SELECT id FROM delivery_man WHERE region = $1`,
+      [region]
+    );
+
+    console.log(deliverymen.rows);
+    // Send proposal and notification to each
+    for (const d of deliverymen.rows) {
+      const deliverymanId = d.id;
+      await db.query(
+        `INSERT INTO delivery_proposal (delivery_man_id, order_id, status, proposal_time)
+                 VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)`,
+        [deliverymanId, orderId]
+      );
+
+      await db.query(
+        `INSERT INTO notification (message, created_at, user_id, user_type, order_id)
+                 VALUES ($1, CURRENT_TIMESTAMP, $2, 'DELIVERY_MAN', $3)`,
+        ['You have a new delivery proposal.', deliverymanId, orderId]
+      );
+    }
+
+    await db.query("COMMIT");
+    res.json({ success: true, orderId });
+  } catch (err) {
+    await db.query("ROLLBACK");
+    console.error("Order error:", err);
+    res.status(500).json({ success: false, error: "Order placement failed." });
+  } 
+});
+
+
+//Deliveryman Backend Routes
+app.get("/proposal",isAuthenticated,async(req,res) =>{
+  const deliveryManId=req.user.deliveryMan_id;
+
+  try{
+    const result=await db.query(
+      `SELECT p.order_id, o.address, o.total_cost, p.status
+       FROM delivery_proposal p
+       JOIN customer_order o ON p.order_id = o.order_id
+       WHERE p.delivery_man_id = $1
+       ORDER BY p.proposal_time DESC`,
+      [deliveryManId]
+    );
+    
+  console.log(result.rows);
+    res.json(result.rows);
+  }catch(err){
+    console.error("Error fetching proposal:",err);
+    res.status(500).json({error:"Failed to load proposals"});
+  }
+});
+
+app.post("/respond", isAuthenticated, async (req, res) => {
+  const { orderId, response } = req.body;
+  const deliveryManId = req.user.deliveryMan_id;
+
+  try {
+
+    // Update accepted proposal
+    await db.query(
+      `UPDATE delivery_proposal
+       SET status = $1, response_time = CURRENT_TIMESTAMP
+       WHERE delivery_man_id = $2 AND order_id = $3`,
+      [response, deliveryManId, orderId]
+    );
+
+    if (response === "ACCEPTED") {
+      // Assign deliveryman to order
+      await db.query(
+        `UPDATE customer_order
+         SET delivery_man_id = $1, status = 'DISPATCHED'
+         WHERE order_id = $2`,
+        [deliveryManId, orderId]
+      );
+
+      // Reject all other proposals for the same order
+      await db.query(
+        `UPDATE delivery_proposal
+         SET status = 'REJECTED'
+         WHERE order_id = $1 AND delivery_man_id != $2`,
+        [orderId, deliveryManId]
+      );
+
+      // Notify the customer
+      const customer = await db.query(
+        `SELECT customer_id FROM customer_order WHERE order_id = $1`,
+        [orderId]
+      );
+
+      await db.query(
+        `INSERT INTO notification (message, created_at, user_id, user_type, order_id)
+         VALUES ('Your order has been booked by a deliveryman.', CURRENT_TIMESTAMP, $1, 'CUSTOMER', $2)`,
+        [customer.rows[0].customer_id, orderId]
+      );
+    }
+
+    await db.query("COMMIT");
+    res.json({ success: true });
+  } catch (err) {
+    await db.query("ROLLBACK");
+    console.error("Error responding to proposal:", err);
+    res.status(500).json({ error: "Failed to respond" });
+  } finally {
+    db.release();
+  }
+});
+
 
 
 
@@ -483,13 +614,14 @@ app.use(bodyParser.json());
 
 app.post("/ssl-request", async (req, res) => {
   try {
-    const { amount, address } = req.body;
+    const { amount, address, orderId } = req.body;
 
-    if (!amount || !address?.city || !address?.region || !address?.roadSector) {
+    if (!amount || !address?.city || !address?.region || !address?.roadSector || !orderId) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const data = {
+      value_a:orderId,
       total_amount: amount,
       currency: 'BDT',
       tran_id: 'TRX_' + Date.now(),
@@ -547,17 +679,43 @@ app.post("/ssl-request", async (req, res) => {
 
 
 app.post("/ssl-payment-success", async (req, res) => {
-  //console.log("Payment success:", req.body);
-  return res.redirect("http://localhost:3000/paymentPage"); // your React home page
+  const orderId = req.body?.value_a;
+
+  try {
+    if (!orderId) {
+      console.error("Missing orderId in SSLCommerz success payload");
+      return res.redirect("http://localhost:3000/paymentPage?status=failed");
+    }
+
+    // Update order status in your database
+    await db.query(
+      `UPDATE customer_order SET status = 'CONFIRMED' WHERE order_id = $1`,
+      [orderId]
+    );
+
+    return res.redirect("http://localhost:3000/paymentPage?status=success");
+  } catch (err) {
+    console.error("Error updating order after success:", err);
+    return res.redirect("http://localhost:3000/paymentPage?status=error");
+  }
 });
 
 
 
-app.post("/ssl-payment-fail", async (req, res, next) => {
-  return res.status(404).json({
-    data: req.body
-  })
+
+app.post("/ssl-payment-fail", async (req, res) => {
+  const orderId = req.body?.value_a;
+
+  if (orderId) {
+    await db.query(
+      `UPDATE customer_order SET status = 'PAYMENT_FAILED' WHERE order_id = $1`,
+      [orderId]
+    );
+  }
+
+  return res.redirect("http://localhost:3000/paymentPage?status=failed");
 });
+
 
 app.post("/ssl-payment-cancel", async (req, res, next) => {
   return res.status(200).json({
@@ -570,6 +728,7 @@ app.post("/ssl-payment-ipn", async (req, res, next) => {
     data: req.body
   })
 });
+
 
 
 

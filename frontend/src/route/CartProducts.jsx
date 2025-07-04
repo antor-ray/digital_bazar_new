@@ -25,7 +25,7 @@ const CartProducts = () => {
       } catch (error) {
         console.error("Error fetching cart items:", error);
         if (error.response?.status === 401) {
-          navigate("/CustomerLogin"); 
+          alert('please login first');
         }
       }
     };

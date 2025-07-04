@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import "../css/checkout.css";
 
 const CheckoutPage = () => {
-    const{ storedTotal } = useParams();
+    const { storedTotal } = useParams();
     console.log(storedTotal);
     const [grandTotal, setGrandTotal] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -29,27 +29,41 @@ const CheckoutPage = () => {
             return;
         }
 
-        if (paymentMethod === "cash") {
-            alert("Order placed with Cash on Delivery!");
-            localStorage.removeItem("grandTotal");
-            navigate("/"); // Optional: redirect after placing order
-        } else {
-            try {
-                const res = await axios.post(
+        try {
+            const orderResponse = await axios.post(
+                "http://localhost:4000/api/orders",
+                {
+                    address,
+                    grandTotal,
+                    paymentMethod,
+                },
+                { withCredentials: true }
+            );
+
+            const orderId = orderResponse.data.orderId;
+
+            if (paymentMethod === "cash") {
+                alert("Order placed with Cash on Delivery!");
+                localStorage.removeItem("grandTotal");
+                navigate("/");
+            } else {
+                const paymentRes = await axios.post(
                     "http://localhost:4000/ssl-request",
                     {
                         amount: grandTotal,
                         address,
+                        orderId,
                     },
                     { withCredentials: true }
                 );
-                window.location.href = res.data.GatewayPageURL;
-            } catch (err) {
-                console.error("SSLCommerz initiation error:", err);
-                alert("Payment initiation failed.");
+                window.location.href = paymentRes.data.GatewayPageURL;
             }
+        } catch (err) {
+            console.error("Order placement failed:", err);
+            alert("Order placement or payment initiation failed.");
         }
     };
+
 
     return (
         <div className="checkout-container">

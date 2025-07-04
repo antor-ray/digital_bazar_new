@@ -1,26 +1,32 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle } from "lucide-react";
+import "../css/PaymentSuccess.css"; // Link to CSS file
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
+  const queryParams = new URLSearchParams(window.location.search);
+  const status = queryParams.get("status");
+  const isSuccess = status === "success";
 
   const handleGoHome = () => {
     navigate("/");
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-r from-green-100 to-green-200 px-4">
-      <div className="bg-white shadow-2xl rounded-2xl p-10 max-w-md text-center">
-        <CheckCircle className="text-green-500 w-20 h-20 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Payment Successful!</h1>
-        <p className="text-gray-600 mb-6">
-          Thank you for your purchase. Your payment has been processed successfully.
+    <div className={`payment-page ${isSuccess ? "success" : "fail"}`}>
+      <div className="payment-card">
+        <div className={`icon ${isSuccess ? "icon-success" : "icon-fail"}`}>
+          {isSuccess ? "✔️" : "❌"}
+        </div>
+        <h1 className="title">
+          {isSuccess ? "Payment Successful!" : "Payment Failed"}
+        </h1>
+        <p className="message">
+          {isSuccess
+            ? "Thank you for your purchase. Your payment has been processed successfully."
+            : "Sorry! Your payment could not be completed. Please try again."}
         </p>
-        <button
-          onClick={handleGoHome}
-          className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-full shadow-md transition-all duration-200"
-        >
+        <button className="home-button" onClick={handleGoHome}>
           Go to Home Page
         </button>
       </div>

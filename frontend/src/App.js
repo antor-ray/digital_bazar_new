@@ -14,7 +14,7 @@ import CheckoutPage from './route/CheckoutPage';
 import PaymentSuccess from './route/PaymentSuccess';
 import DeliveryManLogin from './route/DeliveryManLogin';
 import DeliveryManRegistration from './route/DeliveryManRegistration';
-
+import DeliveryManPage from './route/DeliveryManPage'
 const App = () => {
   return (
     <div>
@@ -30,6 +30,7 @@ const App = () => {
           <Route path="/SellerLogin" element ={<SellerAuth/>}/>
           <Route path='/DeliveryManLogin' element={<DeliveryManLogin/>}/>
           <Route path='/registerDeliveryMan' element={<DeliveryManRegistration/>}/>
+          <Route path='/deliveryManPage' element={<DeliveryManPage/>}/>
           <Route path="/WishList" element ={<WishlistPage/>}/>
           <Route path="/SellerPage" element ={<SellerDashboard/>}/>
           <Route path='/checkout/:storedTotal' element={<CheckoutPage/>}/>

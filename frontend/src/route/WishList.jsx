@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import "../css/WishList.css";
 import icon from "../images/Icon.png";
+import axios from "axios";
 //import profileIcon from "../images/profile-icon.png"; // Add a profile icon image
 
 const WishlistPage = () => {
@@ -12,13 +13,21 @@ const WishlistPage = () => {
   useEffect(() => {
     const fetchWishlist = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/v1/wishlist", {
-          credentials: "include", 
+        // const res = await fetch("http://localhost:4000/api/v1/wishlist", {
+        //   // credentials: "include", 
+        //   withCredentials:true,
+        // });
+
+        const res = await axios.get("http://localhost:4000/api/v1/wishlist", {
+          withCredentials: true, 
         });
         const data = await res.json();
         setWishlistItems(data.items || []);
       } catch (err) {
         console.error("Failed to load wishlist", err);
+        if (err.response?.status === 401) {
+          alert('please login first'); 
+        }
       }
     };
 

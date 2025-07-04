@@ -5,7 +5,7 @@ const DeliveryManLogin = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    phone_number: '',
+    email: '',
     password: ''
   });
 
@@ -24,7 +24,7 @@ const DeliveryManLogin = () => {
       const res = await fetch('http://localhost:4000/DeliveryManlogin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // for sending/receiving HttpOnly cookies
+        credentials: 'include', 
         body: JSON.stringify(formData),
       });
 
@@ -35,7 +35,7 @@ const DeliveryManLogin = () => {
           localStorage.setItem('delivery_token', data.token);
         }
         console.log('Login Success:', data.deliveryMan);
-        navigate('/');
+        navigate('/deliveryManPage');
       } else {
         setError(data.message || 'Login failed');
       }
@@ -50,16 +50,17 @@ const DeliveryManLogin = () => {
       <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Delivery Man Login</h2>
       <form onSubmit={handleLogin} style={formStyle}>
         <div style={inputGroup}>
-          <label>Phone Number:</label>
+          <label>Email:</label>
           <input
-            type="tel"
-            name="phone_number"
-            value={formData.phone_number}
+            type="email"
+            name="email"
+            value={formData.email}
             onChange={handleChange}
             required
             style={inputStyle}
           />
         </div>
+
         <div style={inputGroup}>
           <label>Password:</label>
           <input

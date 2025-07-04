@@ -1,0 +1,71 @@
+.payment-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(to right, #d0f0d0, #e0fce0);
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.payment-page.fail {
+  background: linear-gradient(to right, #ffe0e0, #ffd6d6);
+}
+
+.payment-card {
+  background-color: white;
+  padding: 40px 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  text-align: center;
+}
+
+.icon {
+  font-size: 60px;
+  margin-bottom: 20px;
+}
+
+.icon-success {
+  color: #28a745;
+}
+
+.icon-fail {
+  color: #dc3545;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.message {
+  color: #666;
+  font-size: 15px;
+  margin-bottom: 30px;
+}
+
+.home-button {
+  background-color: #28a745;
+  color: white;
+  padding: 10px 25px;
+  font-size: 15px;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.fail .home-button {
+  background-color: #dc3545;
+}
+
+.home-button:hover {
+  background-color: #218838;
+}
+
+.fail .home-button:hover {
+  background-color: #c82333;
+}
