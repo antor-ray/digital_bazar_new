@@ -123,16 +123,84 @@ app.post("/register", async (req, res) => {
   }
 });
 
+
+//customer profile
+
+app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  try {
+    const results = await db.query(
+      `SELECT email, customer_name, password, city, region, detail_address, phone_number
+        FROM customer
+        WHERE customer_id = $1`,
+      [customerId]
+    );
+
+
+    res.json({
+      status: "success",
+      customer: results.rows,
+    });
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  const {
+    email,
+    customer_name,
+    password,
+    city,
+    region,
+    detail_address,
+    phone_number
+  } = req.body;
+  try {
+    await db.query(
+      `UPDATE customer
+       SET email = $1,
+           customer_name = $2,
+           password = $3,
+           city = $4,
+           region = $5,
+           detail_address = $6,
+           phone_number = $7
+       WHERE customer_id = $8`,
+      [email, customer_name, password, city, region, detail_address, phone_number, customerId]
+    );
+    res.status(200).json({ message: 'Customer profile updated successfully' });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//customer notification
+app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customer_id = req.user.customer_id;
+
+  const result = await db.query(
+    `SELECT * FROM notification
+     WHERE user_id = $1 AND user_type = 'CUSTOMER'
+     ORDER BY created_at DESC`,
+    [customer_id]
+  );
+  // console.log(customer_id);
+  res.json({ notifications: result.rows });
+});
+
+
 //Delivery Man Login
 app.post("/DeliveryManlogin", async (req, res) => {
   const { email, password } = req.body;
-  console.log(email);
   try {
     const result = await db.query(
       "SELECT * FROM delivery_man WHERE email = $1 AND password = $2",
       [email, password]
     );
-    console.log(result.rows[0]);
+    // console.log(result.rows[0]);
     if (result.rows.length <= 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -140,8 +208,6 @@ app.post("/DeliveryManlogin", async (req, res) => {
       deliveryMan_id: result.rows[0].id,
       role: 'deliveryMan'
     };
-    // console.log(deliveryMan_id);
-    // const newTokenData == append role here and pass it into jwt
 
     const secretkey = process.env.JWT_SECRET_KEY;
     const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
@@ -163,7 +229,7 @@ app.post("/DeliveryManlogin", async (req, res) => {
   }
 });
 
-app.post("/logout", (req, res) => {
+app.post("/deliveryman/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     sameSite: "lax",
@@ -222,7 +288,63 @@ app.post("/registerDeliveryMan", async (req, res) => {
 });
 
 
-//
+//delivery man profile
+
+app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+  try {
+    const results = await db.query(
+      `SELECT email, name, password, city, region, phone_number
+         FROM delivery_man
+         WHERE id = $1`,
+      [deliveryManId]
+    );
+
+    res.json({
+      status: "success",
+      deliveryMan: results.rows,
+    });
+  } catch (err) {
+    console.error('Error fetching delivery man profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+);
+
+//edit delivery man profile
+
+app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+  const {
+    email,
+    name,
+    password,
+    city,
+    region,
+    phone_number
+  } = req.body;
+
+  try {
+    await db.query(
+      `UPDATE delivery_man
+         SET email = $1,
+             name = $2,
+             password = $3,
+             city = $4,
+             region = $5,
+             phone_number = $6
+         WHERE id = $7`,
+      [email, name, password, city, region, phone_number, deliveryManId]
+    );
+
+    res.status(200).json({ message: "Delivery man profile updated successfully" });
+  } catch (err) {
+    console.error('Error updating delivery man profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+);
+
 
 
 app.get("/api/v1/products", async (req, res) => {
@@ -311,6 +433,44 @@ app.post("/add_to_cart", isAuthenticated, authorizeRoles('customer'), async (req
   }
 });
 
+//transfer products from cart to order_items
+
+app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  const { orderId } = req.body;
+  console.log(orderId);
+  try {
+    // Step 1: Get the cart_id for this customer
+    const cartResult = await db.query(
+      `SELECT cart_id FROM customer WHERE customer_id = $1`,
+      [customerId]
+    );
+    const cart_id = cartResult.rows[0].cart_id;
+
+    // Step 2: Transfer items from cart_item to order_item
+    await db.query(
+      `INSERT INTO order_item (product_id, order_id)
+       SELECT product_id, $1
+       FROM cart_item
+       WHERE cart_id = $2`,
+      [orderId, cart_id]
+    );
+
+    await db.query(
+      `DELETE FROM cart_item WHERE cart_id = $1`,
+      [cart_id]
+    );
+
+    res.status(200).json({ message: "Items transferred to order successfully" });
+
+  } catch (err) {
+    console.error("Error during item transfer:", err);
+    res.status(500).json({ message: "Failed to transfer items" });
+  }
+});
+
+
+
 app.get("/api/v1/paymentMethods", async (req, res) => {
   try {
     const results = await db.query("select payment_method from payment_method");
@@ -358,7 +518,7 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 app.post("/api/v1/products/:id/reviews", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const productId = parseInt(req.params.id);
   const { rating, comment } = req.body;
-  const customerId = req.user.customer_id; // from middleware
+  const customerId = req.user.customer_id;
 
   if (!rating || !comment) {
     return res.status(400).json({ error: "Rating and comment are required" });
@@ -477,43 +637,34 @@ app.get("/api/v1/wishlist", isAuthenticated, authorizeRoles('customer'), async (
 app.post("/api/orders", isAuthenticated, async (req, res) => {
   const { address, grandTotal, paymentMethod } = req.body;
   const customerId = req.user.customer_id;
-    try {
+
+  try {
+    await db.query("BEGIN"); // Start transaction
+
+    const parts = [address.city, address.region, address.roadSector];
+    const fullAddress = parts.filter(Boolean).join(", ");
+
+    // Insert into customer_order
     const orderInsert = await db.query(
       `INSERT INTO customer_order (customer_id, date, total_cost, address)
-             VALUES ($1, CURRENT_DATE, $2, $3) RETURNING order_id`,
-      [customerId, grandTotal, (address.city || ' '||address.region || ' ' || address.roadSector)]
+       VALUES ($1, CURRENT_DATE, $2, $3) RETURNING order_id`,
+      [customerId, grandTotal, fullAddress]
     );
     const orderId = orderInsert.rows[0].order_id;
 
-
-    // Get customer's region
-    // const regionRes = await db.query(
-    //   `SELECT region FROM customer WHERE customer_id = $1`,
-    //   [customerId]
-    // );
-    const region = address.region;
-    // Find deliverymen in that region
-    const deliverymen = await db.query(
-      `SELECT id FROM delivery_man WHERE region = $1`,
-      [region]
+    // Get payment method ID
+    const paymentMethodResult = await db.query(
+      `SELECT id FROM payment_method WHERE payment_method = $1`,
+      [paymentMethod]
     );
+    const paymentMethodId = paymentMethodResult.rows[0].id;
 
-    console.log(deliverymen.rows);
-    // Send proposal and notification to each
-    for (const d of deliverymen.rows) {
-      const deliverymanId = d.id;
-      await db.query(
-        `INSERT INTO delivery_proposal (delivery_man_id, order_id, status, proposal_time)
-                 VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)`,
-        [deliverymanId, orderId]
-      );
-
-      await db.query(
-        `INSERT INTO notification (message, created_at, user_id, user_type, order_id)
-                 VALUES ($1, CURRENT_TIMESTAMP, $2, 'DELIVERY_MAN', $3)`,
-        ['You have a new delivery proposal.', deliverymanId, orderId]
-      );
-    }
+    // Insert into payment
+    await db.query(
+      `INSERT INTO payment(order_id, status, amount, payment_date, payment_method_id) 
+       VALUES ($1, 'PENDING', $2, CURRENT_DATE, $3)`,
+      [orderId, grandTotal, paymentMethodId]
+    );
 
     await db.query("COMMIT");
     res.json({ success: true, orderId });
@@ -521,16 +672,55 @@ app.post("/api/orders", isAuthenticated, async (req, res) => {
     await db.query("ROLLBACK");
     console.error("Order error:", err);
     res.status(500).json({ success: false, error: "Order placement failed." });
-  } 
+  }
 });
 
 
-//Deliveryman Backend Routes
-app.get("/proposal",isAuthenticated,async(req,res) =>{
-  const deliveryManId=req.user.deliveryMan_id;
+app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
+  const { address, orderId } = req.body;
+  const customerId = req.user.customer_id;
 
-  try{
-    const result=await db.query(
+  try {
+    const region = address.region;
+
+    // console.log(region);
+
+    // 1. Find deliverymen in that region
+    const deliverymen = await db.query(
+      `SELECT id FROM delivery_man WHERE region = $1`,
+      [region]
+    );
+
+    if (deliverymen.rowCount === 0) {
+      return res.status(404).json({ success: false, error: "No delivery men found in this region." });
+    }
+
+    // 2. Send proposals to each deliveryman
+    for (const d of deliverymen.rows) {
+      const deliverymanId = d.id;
+
+      await db.query(
+        `INSERT INTO delivery_proposal (delivery_man_id, order_id, status, proposal_time)
+         VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)`,
+        [deliverymanId, orderId]
+      );
+    }
+
+    res.json({ success: true, message: "Proposal sent to deliverymen." });
+  } catch (err) {
+    console.error("Send proposal error:", err);
+    res.status(500).json({ success: false, error: "Failed to send proposals." });
+  }
+});
+
+
+
+//Deliveryman Backend Routes
+app.get("/proposal", isAuthenticated, async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+
+  try {
+    const result = await db.query(
       `SELECT p.order_id, o.address, o.total_cost, p.status
        FROM delivery_proposal p
        JOIN customer_order o ON p.order_id = o.order_id
@@ -538,12 +728,12 @@ app.get("/proposal",isAuthenticated,async(req,res) =>{
        ORDER BY p.proposal_time DESC`,
       [deliveryManId]
     );
-    
-  console.log(result.rows);
+
+    console.log(result.rows);
     res.json(result.rows);
-  }catch(err){
-    console.error("Error fetching proposal:",err);
-    res.status(500).json({error:"Failed to load proposals"});
+  } catch (err) {
+    console.error("Error fetching proposal:", err);
+    res.status(500).json({ error: "Failed to load proposals" });
   }
 });
 
@@ -573,7 +763,7 @@ app.post("/respond", isAuthenticated, async (req, res) => {
       // Reject all other proposals for the same order
       await db.query(
         `UPDATE delivery_proposal
-         SET status = 'REJECTED'
+         SET status = 'BOOKED'
          WHERE order_id = $1 AND delivery_man_id != $2`,
         [orderId, deliveryManId]
       );
@@ -597,8 +787,6 @@ app.post("/respond", isAuthenticated, async (req, res) => {
     await db.query("ROLLBACK");
     console.error("Error responding to proposal:", err);
     res.status(500).json({ error: "Failed to respond" });
-  } finally {
-    db.release();
   }
 });
 
@@ -621,7 +809,7 @@ app.post("/ssl-request", async (req, res) => {
     }
 
     const data = {
-      value_a:orderId,
+      value_a: orderId,
       total_amount: amount,
       currency: 'BDT',
       tran_id: 'TRX_' + Date.now(),
@@ -687,11 +875,17 @@ app.post("/ssl-payment-success", async (req, res) => {
       return res.redirect("http://localhost:3000/paymentPage?status=failed");
     }
 
-    // Update order status in your database
+
     await db.query(
       `UPDATE customer_order SET status = 'CONFIRMED' WHERE order_id = $1`,
       [orderId]
     );
+
+    await db.query(
+      `Update payment set status ='successful' where order_id=$1`,
+      [orderId]
+    );
+
 
     return res.redirect("http://localhost:3000/paymentPage?status=success");
   } catch (err) {
@@ -708,7 +902,7 @@ app.post("/ssl-payment-fail", async (req, res) => {
 
   if (orderId) {
     await db.query(
-      `UPDATE customer_order SET status = 'PAYMENT_FAILED' WHERE order_id = $1`,
+      `Update payment set status ='failed' where order_id=$1`,
       [orderId]
     );
   }

@@ -41,6 +41,19 @@ const CheckoutPage = () => {
             );
 
             const orderId = orderResponse.data.orderId;
+          const propres=  await axios.post("http://localhost:4000/deliveryman/sendproposal", {
+                orderId,
+                address
+            }, { withCredentials: true });
+
+            //  transfer items from cart to order_items
+            const transferItems = await axios.post(
+                "http://localhost:4000/transfer/item",
+                {
+                    orderId
+                },
+                { withCredentials: true }
+            );
 
             if (paymentMethod === "cash") {
                 alert("Order placed with Cash on Delivery!");
@@ -56,6 +69,7 @@ const CheckoutPage = () => {
                     },
                     { withCredentials: true }
                 );
+
                 window.location.href = paymentRes.data.GatewayPageURL;
             }
         } catch (err) {

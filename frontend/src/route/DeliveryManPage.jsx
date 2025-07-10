@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import "../css/DeliveryManPage.css"; // Add this CSS file
+import "../css/DeliveryManPage.css";
+import { useNavigate } from "react-router-dom";
 
 const DeliveryManPage = () => {
+  const navigate = useNavigate();
   const [proposals, setProposals] = useState([]);
 
   useEffect(() => {
     fetchProposals();
+    const interval = setInterval(() => {
+      fetchProposals();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchProposals = async () => {
@@ -33,13 +40,31 @@ const DeliveryManPage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await axios.post("http://localhost:4000/deliveryman/logout", {}, {
+        withCredentials: true,
+      });
+      navigate("/"); 
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   return (
     <div className="delivery-container">
       <div className="header">
         <h1>Deliveryman Dashboard</h1>
         <div className="header-buttons">
-          <button className="header-btn">👤 Profile</button>
-          <button className="header-btn">🔔 Notifications</button>
+          <button
+            className="header-btn"
+            onClick={() => navigate("/deliveryman/profile")}
+          >
+            👤 Profile
+          </button>
+          <button onClick={handleLogout}>
+             Logout
+          </button>
         </div>
       </div>
 
@@ -57,7 +82,9 @@ const DeliveryManPage = () => {
           <tbody>
             {proposals.length === 0 ? (
               <tr>
-                <td colSpan="5" className="empty-row">No delivery proposals at the moment.</td>
+                <td colSpan="5" className="empty-row">
+                  No delivery proposals at the moment.
+                </td>
               </tr>
             ) : (
               proposals.map((p) => (
