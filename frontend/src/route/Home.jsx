@@ -38,6 +38,10 @@ const HomePage = () => {
 
 
 
+
+
+
+
   const scrollingImages = [
     "/images/cloths1.jpg",
     "/images/cloths2.jpg",
@@ -190,20 +194,20 @@ const HomePage = () => {
           <span className="nav-action-item" onClick={() => navigate("/CartItems")}>Cart</span>
           <span className="nav-action-item" onClick={() => navigate("/WishList")}>Wishlist</span>
 
-          <span
-            className="nav-action-item"
-            onClick={() => {
-              fetchNotifications();
-              setShowNotifications(!showNotifications);
-            }}
-          >
-            🔔 Notifications
-          </span>
+            <span
+              className="nav-action-item"
+              onClick={() => {
+                fetchNotifications();
+                setShowNotifications(!showNotifications);
+              }}
+            >
+              🔔 Notifications
+            </span>
 
         </div>
       </nav>
 
-      {showNotifications && (
+      {isLoggedIn && showNotifications &&(
         <div className="notification-panel">
           <h3>Notifications</h3>
           {notifications.length === 0 ? (

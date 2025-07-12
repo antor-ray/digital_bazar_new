@@ -178,18 +178,39 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
 });
 
 //customer notification
-app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customer_id = req.user.customer_id;
+// app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+//   const customer_id = req.user.customer_id;
 
-  const result = await db.query(
-    `SELECT * FROM notification
-     WHERE user_id = $1 AND user_type = 'CUSTOMER'
-     ORDER BY created_at DESC`,
-    [customer_id]
-  );
-  // console.log(customer_id);
-  res.json({ notifications: result.rows });
-});
+//   const result = await db.query(
+//     `SELECT * FROM notification
+//      WHERE user_id = $1 AND user_type = 'CUSTOMER'
+//      ORDER BY created_at DESC`,
+//     [customer_id]
+//   );
+//   // console.log(customer_id);
+//   res.json({ notifications: result.rows });
+// });
+
+app.get( "/api/notifications",isAuthenticated,authorizeRoles("customer"),
+  async (req, res) => {
+    try {
+      const customer_id = req.user.customer_id;
+
+      const result = await db.query(
+        `SELECT * FROM notification
+         WHERE user_id = $1 AND user_type = 'CUSTOMER'
+         ORDER BY created_at DESC`,
+        [customer_id]
+      );
+
+      res.json({ notifications: result.rows });
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 
 
 //Delivery Man Login

@@ -11,7 +11,7 @@ const DeliveryManPage = () => {
     fetchProposals();
     const interval = setInterval(() => {
       fetchProposals();
-    }, 5000);
+    }, 500);
 
     return () => clearInterval(interval);
   }, []);
