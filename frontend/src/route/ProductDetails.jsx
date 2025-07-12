@@ -91,12 +91,11 @@ const ProductDetails = () => {
       console.error("Error adding to wishlist:", error);
       if (error.response && error.response.status === 401) {
         alert("Please login first!");
-      } else {   
+      } else {
         alert("Failed to add to wishlist");
       }
     }
   };
-
 
   const productId = parseInt(id); // optional extra safety
 
@@ -142,12 +141,7 @@ const ProductDetails = () => {
   if (!product) return <div className="loading">Loading...</div>;
 
   // Mock multiple images - in reality, these would come from your database
-  const productImages = [
-    product.image_url,
-    product.image_url, // You can replace these with actual multiple image URLs
-    product.image_url,
-    product.image_url,
-  ];
+  const productImages = product.images || []; // from backend
 
   return (
     <div className="product-details-page">
@@ -162,7 +156,7 @@ const ProductDetails = () => {
         <div className="product-images-section">
           <div className="main-image-container">
             <img
-              src={`/${productImages[selectedImage]}`}
+               src={`http://localhost:4000/images/${productImages[selectedImage]}`}
               alt={product.product_name}
               className="details-img"
             />
@@ -171,7 +165,7 @@ const ProductDetails = () => {
             {productImages.map((image, index) => (
               <img
                 key={index}
-                src={`/${image}`}
+                src={`http://localhost:4000/images/${image}`}
                 alt={`${product.product_name} ${index + 1}`}
                 className={`thumbnail ${
                   selectedImage === index ? "active" : ""
@@ -199,7 +193,7 @@ const ProductDetails = () => {
             <div className="price-row">
               <span className="selling-price">৳{product.selling_price}</span>
               <span className="original-price">৳{product.actual_price}</span>
-              <span className="discount-badge">-৳{product.discount}</span>
+              <span className="discount-badge">{product.discount}%</span>
             </div>
           </div>
 
@@ -226,12 +220,34 @@ const ProductDetails = () => {
                 ))}
               </div>
             </div>
+
+            <div className="info-item">
+            <span className="info-label">Seller:</span>
+            <span className="seller-info">
+              {product.seller_name || "Unknown Seller"}
+            </span>
+            
+            <span className="info-label"> Phone No:</span>
+            <span className="seller-info">
+              {product.phone_number || "Unknown Seller"}
+            </span>
           </div>
 
+          </div>
+          
+          {/* <div className="seller-info">
+            <div className="info-item">
+                <span>Seller Name:</span>
+                <span></span>
+            </div>
+            
+          </div> */}
+
           <div className="description-section">
-            <h3>Description</h3>
+            <h3>Short Description</h3>
             <p className="short-description">{product.short_des}</p>
             <div className="full-description">
+              <h3>Details</h3>
               <p>{product.product_details}</p>
             </div>
           </div>

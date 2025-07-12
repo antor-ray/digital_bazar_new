@@ -1,0 +1,283 @@
+/* Container */
+.profile-container {
+  padding: 40px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Wrapper */
+.profile-wrapper {
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* Header */
+.profile-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.main-title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #343a40;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: #6c757d;
+}
+
+/* Content row (2 boxes side by side) */
+.profile-content {
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* Card Style (for both Profile and Password) */
+.info-card {
+  flex: 1 1 48%;
+  min-width: 360px;
+  background-color: #fff;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Card Header */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  color: #212529;
+  font-weight: 600;
+}
+
+.title-icon {
+  color: #0d6efd;
+}
+.title-icon-danger {
+  color: #dc3545;
+}
+
+/* Business Info */
+.business-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.business-name {
+  font-size: 22px;
+  font-weight: bold;
+  color: #0d6efd;
+}
+
+.verification-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #eaf4ff;
+  color: #0d6efd;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+/* Form Grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group-full {
+  grid-column: span 2;
+}
+
+.form-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #495057;
+}
+
+.form-input,
+.form-textarea {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ced4da;
+  font-size: 16px;
+}
+
+.form-textarea {
+  resize: none;
+}
+
+.form-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #343a40;
+  background-color: #f1f3f5;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.display-icon {
+  color: #0d6efd;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 14px;
+  font-size: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease-in-out;
+  border: none;
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-primary {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.btn-success {
+  background-color: #198754;
+  color: white;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-secondary {
+  background-color: #adb5bd;
+  color: white;
+}
+
+.btn-group {
+  display: flex;
+  gap: 12px;
+}
+
+/* Password Styles */
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #495057;
+}
+
+.eye-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Password Placeholder */
+.password-placeholder {
+  text-align: center;
+  color: #6c757d;
+}
+
+.security-icon {
+  margin-bottom: 10px;
+}
+
+.lock-icon {
+  width: 48px;
+  height: 48px;
+  color: #0d6efd;
+}
+
+.security-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.security-subtext {
+  font-size: 14px;
+}
+
+/* Requirements */
+.password-requirements {
+  background-color: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.requirements-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.requirements-list {
+  list-style: disc;
+  margin-left: 18px;
+  font-size: 14px;
+  color: #495057;
+}
+
+/* Responsive (Mobile/Tablet) */
+@media (max-width: 992px) {
+  .profile-content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .info-card {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group-full {
+    grid-column: span 1;
+  }
+}

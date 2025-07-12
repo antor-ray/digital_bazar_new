@@ -162,7 +162,7 @@
 .info-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 1rem;
   padding: 0.8rem;
   background: #fff;
@@ -207,6 +207,16 @@
   font-size: 0.8rem;
   font-weight: 500;
 }
+
+.seller-info {
+  background: #e9ecef;
+  color: #495057;
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 
 .description-section {
   margin-bottom: 2rem;

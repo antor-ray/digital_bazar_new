@@ -33,6 +33,7 @@ const CartProducts = () => {
     fetchCartItems();
   }, []);
 
+  
   // Recalculate total whenever cart items or quantity changes
   useEffect(() => {
     const total = cartItems.reduce(

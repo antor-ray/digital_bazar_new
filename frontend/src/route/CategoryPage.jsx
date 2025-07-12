@@ -12,7 +12,7 @@ const CategoryPage = () => {
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [user, setUser] = useState(null); // Mock auth check
-  const productsPerPage = 6;
+  const productsPerPage = 10;
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -108,7 +108,7 @@ const CategoryPage = () => {
 
       <h1 className="category-title">{categoryName}</h1>
 
-      <section className="products-section">
+      <section className="catagory_products-section">
         <h2 className="section-title">Popular Products</h2>
         <div className="products-row">
           {getFilteredSortedPaginatedProducts().length > 0 ? (
@@ -121,7 +121,7 @@ const CategoryPage = () => {
                 <img
                   src={
                     product.image_url
-                      ? `/${product.image_url}`
+                      ? `http://localhost:4000/images/${product.image_url}`
                       : "https://via.placeholder.com/250?text=No+Image"
                   }
                   alt={product.product_name}

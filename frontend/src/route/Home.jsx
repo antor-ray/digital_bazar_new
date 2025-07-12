@@ -9,8 +9,8 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState([]);
   const [popularLimit, setPopularLimit] = useState(5);
-  const [newestLimit, setNewestLimit] = useState(4);
-  const [recommendedLimit, setRecommendedLimit] = useState(4);
+  const [newestLimit, setNewestLimit] = useState(5);
+  const [recommendedLimit, setRecommendedLimit] = useState(5);
   const [reviewLimit, setReviewLimit] = useState(3);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [heroImageIndex, setHeroImageIndex] = useState(0);
@@ -89,7 +89,7 @@ const HomePage = () => {
               onClick={() => navigate(`/product/${product.product_id}`)}
             >
               <img
-                src={product.image_url || "https://via.placeholder.com/250?text=No+Image"}
+                src={`http://localhost:4000/images/${product.image_url}` || "https://via.placeholder.com/250?text=No+Image"}
                 alt={product.product_name}
                 className="product-img"
               />
@@ -97,12 +97,12 @@ const HomePage = () => {
               <p className="product-price">
                 Price: <s>৳{product.actual_price}</s>
               </p>
-              <p className="product-discount">Discount: ৳{product.discount}</p>
+              <p className="product-discount">Discount: {product.discount}%</p>
               <p className="product-actual-price">Selling Price: ৳{product.selling_price}</p>
             </div>
           ))}
         </div>
-        {products.length > 4 && (
+        {products.length > 5 && (
           <button className="show-more-btn" onClick={expanded ? showLess : showMore}>
             {expanded ? "See Less" : "See More"}
           </button>

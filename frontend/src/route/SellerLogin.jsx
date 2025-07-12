@@ -21,14 +21,18 @@ const SellerAuth = () => {
         setLoading(true);
         setMessage({ type: '', text: '' });
         try {
-            const response = await fetch('http://localhost:4000/api/v1/seller/login', {
+            const response = await fetch('http://localhost:4000/SellerLogin', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 credentials: 'include', body: JSON.stringify(loginData)
             });
             const data = await response.json();
-            if (data.success) {
+            console.log(data.seller);
+            localStorage.setItem('token_seller', data.token_seller);
+
+            if (response.ok) {
+                console.log(localStorage.getItem('token_seller'));
                 setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
-                setTimeout(() => { window.location.href = '/seller/dashboard'; }, 2000);
+                setTimeout(() => { window.location.href = '/SellerPage'; }, 1000);
             } else {
                 setMessage({ type: 'error', text: data.message || 'Login failed' });
             }
@@ -60,7 +64,7 @@ const SellerAuth = () => {
 
         try {
             const { confirmPassword, ...dataToSend } = registerData;
-            const response = await fetch('http://localhost:4000/api/v1/seller/register', {
+            const response = await fetch('http://localhost:4000/SellerRegister', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 credentials: 'include', body: JSON.stringify(dataToSend)
             });
@@ -86,7 +90,7 @@ const SellerAuth = () => {
         setMessage({ type: '', text: '' });
         setLoginData({ email: '', password: '' });
         setRegisterData({ email: '', password: '', confirmPassword: '', business_name: '', about: '', phone_number: '', address: '' });
-    };
+    }
 
     return (
         <div className="seller-auth-wrapper">
