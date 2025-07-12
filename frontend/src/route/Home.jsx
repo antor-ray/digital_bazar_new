@@ -5,6 +5,7 @@ import axios from "axios";
 import "../css/homepage.css";
 import icon from "../images/Icon.png";
 
+
 const HomePage = () => {
   const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState([]);
@@ -16,6 +17,24 @@ const HomePage = () => {
   const [heroImageIndex, setHeroImageIndex] = useState(0);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+
+
+  //notification bar
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get("http://localhost:4000/api/notifications", {
+        withCredentials: true,
+      });
+      // console.log(res.data.notifications);
+      setNotifications(res.data.notifications); // Make sure backend sends this field
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
 
   const scrollingImages = [
     "/images/cloths1.jpg",
@@ -123,7 +142,7 @@ const HomePage = () => {
           <li className="nav-item menu-item">
             Menu
             <ul className="menu-dropdown">
-              <li className="menu-option" onClick={() => navigate("/profile")}>Edit Profile</li>
+              <li className="menu-option" onClick={() => navigate("/customerProfile")}>Edit Profile</li>
               <li className="menu-option" onClick={() => navigate("/settings")}>Settings</li>
               <li className="menu-option">Offers</li>
               <li className="menu-option">Help</li>
@@ -168,8 +187,41 @@ const HomePage = () => {
 
           <span className="nav-action-item" onClick={() => navigate("/CartItems")}>Cart</span>
           <span className="nav-action-item" onClick={()=> navigate("/WishList")}>Wishlist</span>
+
+          <span
+              className="nav-action-item"
+              onClick={() => {
+                fetchNotifications();
+                setShowNotifications(!showNotifications);
+              }}
+            >
+              🔔 Notifications
+            </span>
+
         </div>
       </nav>
+
+       {isLoggedIn && showNotifications &&(
+        <div className="notification-panel">
+          <h3>Notifications</h3>
+          {notifications.length === 0 ? (
+            <p className="no-notification">You're all caught up! 🎉</p>
+          ) : (
+            <ul>
+              {notifications.map((note) => (
+                <li key={note.notification_id} className="notification-item">
+                  <div className="notification-message">{note.message}</div>
+                  <div className="notification-time">
+                    {new Date(note.created_at).toLocaleString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+
 
       <section className="hero-section">
         <div className="scrolling-container">

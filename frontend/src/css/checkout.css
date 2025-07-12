@@ -1,0 +1,87 @@
+.checkout-container {
+  padding: 30px;
+  max-width: 1000px;
+  margin: auto;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+}
+
+.checkout-title {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.checkout-content {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.order-summary {
+  flex: 1;
+  min-width: 300px;
+}
+
+.order-summary table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-summary th,
+.order-summary td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+.grand-total {
+  margin-top: 15px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.payment-section {
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.payment-section input {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.payment-options label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.place-order-btn {
+  padding: 12px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.place-order-btn:hover {
+  background-color: #0056b3;
+}
+
+.grand-total-box {
+  padding: 20px;
+  background-color: #f0f8ff;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+}

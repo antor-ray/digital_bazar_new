@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const isAuthenticated = async (req, res, next) => {
+const isAuthenticatedDeliveryMan= async (req, res, next) => {
   try {
     const token = req.cookies.token;
     if (!token) {
@@ -12,7 +12,7 @@ const isAuthenticated = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid token" });
     }
 
-    req.user = decode;
+    req.customer_id = decode.deliveryMan_id;
     next();
   } catch (err) {
     console.log(err);
@@ -20,4 +20,4 @@ const isAuthenticated = async (req, res, next) => {
   }
 };
 
-module.exports = isAuthenticated;
+module.exports = isAuthenticatedDeliveryMan;

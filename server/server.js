@@ -5,6 +5,9 @@ const app = express();
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const fs = require("fs");
+const bodyParser = require("body-parser");
+const SSLCommerzPayment = require('sslcommerz-lts');
+
 
 const path = require("path");
 
@@ -12,6 +15,7 @@ const db = require("./db");
 const { message } = require("statuses");
 const isAuthenticated = require("./middleware/isAuthenticated");
 const isAuthenticatedSeller = require("./middleware/isAuthenticatedSeller");
+
 //   
 app.use(
   cors({
@@ -23,6 +27,8 @@ app.use(
 app.use(express.json());
 
 const cookieParser = require("cookie-parser");
+const isAuthenticatedDeliveryMan = require("./middleware/isAuthenticatedDeliveryMan");
+const authorizeRoles = require("./middleware/authorizeRoles");
 const { rejects } = require("assert");
 const status = require("statuses");
 app.use(cookieParser());
@@ -48,9 +54,10 @@ app.post("/login", async (req, res) => {
     }
     let tokenData = {
       customer_id: result.rows[0].customer_id,
+       role: 'customer',
     };
     // const newTokenData == append role here and pass it into jwt
-    console.log(result.rows);
+   // console.log(result.rows);
     const secretkey = process.env.JWT_SECRET_KEY;
     const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
 
@@ -80,7 +87,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/isAuthenticate", isAuthenticated, async (req, res) => {
-  res.json({ message: "You are logged in", customer_id: req.customer_id });
+  res.json({ message: "You are logged in", customer_id:req.user.customer_id});
 });
 
 app.post("/register", async (req, res) => {
@@ -129,6 +136,249 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+//customer profile
+
+app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  console.log(customerId);
+  try {
+    const results = await db.query(
+      `SELECT email, customer_name, password, city, region, detail_address, phone_number
+        FROM customer
+        WHERE customer_id = $1`,
+      [customerId]
+    );
+
+
+    res.json({
+      status: "success",
+      customer: results.rows,
+    });
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  const {
+    email,
+    customer_name,
+    password,
+    city,
+    region,
+    detail_address,
+    phone_number
+  } = req.body;
+  try {
+    await db.query(
+      `UPDATE customer
+       SET email = $1,
+           customer_name = $2,
+           password = $3,
+           city = $4,
+           region = $5,
+           detail_address = $6,
+           phone_number = $7
+       WHERE customer_id = $8`,
+      [email, customer_name, password, city, region, detail_address, phone_number, customerId]
+    );
+    res.status(200).json({ message: 'Customer profile updated successfully' });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//customer notification
+// app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+//   const customer_id = req.user.customer_id;
+
+//   const result = await db.query(
+//     `SELECT * FROM notification
+//      WHERE user_id = $1 AND user_type = 'CUSTOMER'
+//      ORDER BY created_at DESC`,
+//     [customer_id]
+//   );
+//   // console.log(customer_id);
+//   res.json({ notifications: result.rows });
+// });
+
+app.get( "/api/notifications",isAuthenticated,authorizeRoles("customer"),
+  async (req, res) => {
+    try {
+      const customer_id = req.user.customer_id;
+
+      const result = await db.query(
+        `SELECT * FROM notification
+         WHERE user_id = $1 AND user_type = 'CUSTOMER'
+         ORDER BY created_at DESC`,
+        [customer_id]
+      );
+
+      res.json({ notifications: result.rows });
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+
+//Delivery Man Login
+app.post("/DeliveryManlogin", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const result = await db.query(
+      "SELECT * FROM delivery_man WHERE email = $1 AND password = $2",
+      [email, password]
+    );
+    // console.log(result.rows[0]);
+    if (result.rows.length <= 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+    let tokenData = {
+      deliveryMan_id: result.rows[0].id,
+      role: 'deliveryMan'
+    };
+
+    const secretkey = process.env.JWT_SECRET_KEY;
+    const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
+
+    return res
+      .cookie("token", token, {
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+      .status(200)
+      .json({
+        deliveryMan: result.rows[0],
+        token: token,
+      });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/deliveryman/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  res.json({ message: "Logged out successfully" });
+});
+
+app.get("/isAuthenticateDeliveryMan", isAuthenticatedDeliveryMan, async (req, res) => {
+  res.json({ message: "You are logged in", deliveryMan_id: req.deliveryMan_id });
+});
+
+app.post("/registerDeliveryMan", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone_number,
+      region,
+      city,
+      password
+    } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !phone_number ||
+      !region ||
+      !city
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const newCustomer = await db.query(
+      "INSERT INTO delivery_man (name,email,phone_number,region,city,password) VALUES ($1, $2, $3, $4, $5,$6) RETURNING *",
+      [
+        name,
+        email,
+        phone_number,
+        region,
+        city,
+        password
+      ]
+    );
+
+    res
+      .status(201)
+      .json({
+        message: "Delivery Man registered successfully",
+        customer: newCustomer.rows[0],
+      });
+  } catch (err) {
+    console.error("Error registering Delivery man:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+//delivery man profile
+
+app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+  try {
+    const results = await db.query(
+      `SELECT email, name, password, city, region, phone_number
+         FROM delivery_man
+         WHERE id = $1`,
+      [deliveryManId]
+    );
+
+    res.json({
+      status: "success",
+      deliveryMan: results.rows,
+    });
+  } catch (err) {
+    console.error('Error fetching delivery man profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+);
+
+//edit delivery man profile
+
+app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+  const {
+    email,
+    name,
+    password,
+    city,
+    region,
+    phone_number
+  } = req.body;
+
+  try {
+    await db.query(
+      `UPDATE delivery_man
+         SET email = $1,
+             name = $2,
+             password = $3,
+             city = $4,
+             region = $5,
+             phone_number = $6
+         WHERE id = $7`,
+      [email, name, password, city, region, phone_number, deliveryManId]
+    );
+
+    res.status(200).json({ message: "Delivery man profile updated successfully" });
+  } catch (err) {
+    console.error('Error updating delivery man profile:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+);
+
 
 
 
@@ -193,7 +443,7 @@ app.get("/api/v1/products/:id", async (req, res) => {
 
 app.get("/cartItems", isAuthenticated, async (req, res) => {
   try {
-    const customer_id = req.customer_id;
+    const customer_id = req.user.customer_id;
     console.log(customer_id);
     const cartResult = await db.query(
       "select cart_id from customer where customer_id=$1",
@@ -222,7 +472,7 @@ app.get("/cartItems", isAuthenticated, async (req, res) => {
 
 app.post("/add_to_cart", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.customer_id;
+  const customer_id = req.user.customer_id;
   console.log(customer_id);
   try {
     const cartResult = await db.query(
@@ -246,6 +496,47 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
     res.status(500).json({ message: "Failed to add to cart" });
   }
 });
+
+
+
+//transfer products from cart to order_items
+
+app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const customerId = req.user.customer_id;
+  const { orderId } = req.body;
+  console.log(orderId);
+  try {
+    // Step 1: Get the cart_id for this customer
+    const cartResult = await db.query(
+      `SELECT cart_id FROM customer WHERE customer_id = $1`,
+      [customerId]
+    );
+    const cart_id = cartResult.rows[0].cart_id;
+    console.log("cart");
+    // Step 2: Transfer items from cart_item to order_item
+    await db.query(
+      `INSERT INTO order_item (product_id, order_id)
+       SELECT product_id, $1
+       FROM cart_item
+       WHERE cart_id = $2`,
+      [orderId, cart_id]
+    );
+
+    console.log("next");
+
+    await db.query(
+      `DELETE FROM cart_item WHERE cart_id = $1`,
+      [cart_id]
+    );
+
+    res.status(200).json({ message: "Items transferred to order successfully" });
+
+  } catch (err) {
+    console.error("Error during item transfer:", err);
+    res.status(500).json({ message: "Failed to transfer items" });
+  }
+});
+
 
 app.get("/api/v1/paymentMethods", async (req, res) => {
   try {
@@ -294,7 +585,7 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 app.post("/api/v1/products/:id/reviews", isAuthenticated, async (req, res) => {
   const productId = parseInt(req.params.id);
   const { rating, comment } = req.body;
-  const customerId = req.customer_id; // from middleware
+  const customerId = req.user.customer_id; // from middleware
 
   if (!rating || !comment) {
     return res.status(400).json({ error: "Rating and comment are required" });
@@ -351,7 +642,7 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
 /// add to WishList-------------------------------------------------------------------
 app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.customer_id;
+  const customer_id = req.user.customer_id;
   console.log(customer_id);
   try {
     const wishListResult = await db.query(
@@ -380,7 +671,7 @@ app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
 // wishlist items fetching-------------------------------
 
 app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
-  const customerId = req.customer_id;
+  const customerId = req.user.customer_id;
   console.log(customerId);
 
   try {
@@ -916,6 +1207,300 @@ app.put("/SellerEditPassword", isAuthenticatedSeller, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
+
+//order and delivery details:
+
+
+app.post("/api/orders", isAuthenticated, async (req, res) => {
+  const { address, grandTotal, paymentMethod } = req.body;
+  const customerId = req.user.customer_id;
+
+  try {
+    await db.query("BEGIN"); // Start transaction
+
+    const parts = [address.city, address.region, address.roadSector];
+    const fullAddress = parts.filter(Boolean).join(", ");
+
+    // Insert into customer_order
+    const orderInsert = await db.query(
+      `INSERT INTO customer_order (customer_id, date, total_cost, address)
+       VALUES ($1, CURRENT_DATE, $2, $3) RETURNING order_id`,
+      [customerId, grandTotal, fullAddress]
+    );
+    const orderId = orderInsert.rows[0].order_id;
+
+    // Get payment method ID
+    const paymentMethodResult = await db.query(
+      `SELECT id FROM payment_method WHERE payment_method = $1`,
+      [paymentMethod]
+    );
+    const paymentMethodId = paymentMethodResult.rows[0].id;
+
+    // Insert into payment
+    await db.query(
+      `INSERT INTO payment(order_id, status, amount, payment_date, payment_method_id) 
+       VALUES ($1, 'PENDING', $2, CURRENT_DATE, $3)`,
+      [orderId, grandTotal, paymentMethodId]
+    );
+
+    await db.query("COMMIT");
+    res.json({ success: true, orderId });
+  } catch (err) {
+    await db.query("ROLLBACK");
+    console.error("Order error:", err);
+    res.status(500).json({ success: false, error: "Order placement failed." });
+  }
+});
+
+
+app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
+  const { address, orderId } = req.body;
+
+  try {
+    const region = address.region;
+
+    // console.log(region);
+
+    // 1. Find deliverymen in that region
+    const deliverymen = await db.query(
+      `SELECT id FROM delivery_man WHERE region = $1`,
+      [region]
+    );
+
+    if (deliverymen.rowCount === 0) {
+      return res.status(404).json({ success: false, error: "No delivery men found in this region." });
+    }
+
+    // 2. Send proposals to each deliveryman
+    for (const d of deliverymen.rows) {
+      const deliverymanId = d.id;
+
+      await db.query(
+        `INSERT INTO delivery_proposal (delivery_man_id, order_id, status, proposal_time)
+         VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP)`,
+        [deliverymanId, orderId]
+      );
+    }
+
+    res.json({ success: true, message: "Proposal sent to deliverymen." });
+  } catch (err) {
+    console.error("Send proposal error:", err);
+    res.status(500).json({ success: false, error: "Failed to send proposals." });
+  }
+});
+
+
+
+//Deliveryman Backend Routes
+app.get("/proposal", isAuthenticated, async (req, res) => {
+  const deliveryManId = req.user.deliveryMan_id;
+
+  try {
+    const result = await db.query(
+      `SELECT p.order_id, o.address, o.total_cost, p.status
+       FROM delivery_proposal p
+       JOIN customer_order o ON p.order_id = o.order_id
+       WHERE p.delivery_man_id = $1
+       ORDER BY p.proposal_time DESC`,
+      [deliveryManId]
+    );
+
+    console.log(result.rows);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching proposal:", err);
+    res.status(500).json({ error: "Failed to load proposals" });
+  }
+});
+
+app.post("/respond", isAuthenticated, async (req, res) => {
+  const { orderId, response } = req.body;
+  const deliveryManId = req.user.deliveryMan_id;
+
+  try {
+
+    // Update accepted proposal
+    await db.query(
+      `UPDATE delivery_proposal
+       SET status = $1, response_time = CURRENT_TIMESTAMP
+       WHERE delivery_man_id = $2 AND order_id = $3`,
+      [response, deliveryManId, orderId]
+    );
+
+    if (response === "ACCEPTED") {
+      // Assign deliveryman to order
+      await db.query(
+        `UPDATE customer_order
+         SET delivery_man_id = $1, status = 'DISPATCHED'
+         WHERE order_id = $2`,
+        [deliveryManId, orderId]
+      );
+
+      // Reject all other proposals for the same order
+      await db.query(
+        `UPDATE delivery_proposal
+         SET status = 'BOOKED'
+         WHERE order_id = $1 AND delivery_man_id != $2`,
+        [orderId, deliveryManId]
+      );
+
+      // Notify the customer
+      const customer = await db.query(
+        `SELECT customer_id FROM customer_order WHERE order_id = $1`,
+        [orderId]
+      );
+
+      await db.query(
+        `INSERT INTO notification (message, created_at, user_id, user_type, order_id)
+         VALUES ('Your order has been booked by a deliveryman.', CURRENT_TIMESTAMP, $1, 'CUSTOMER', $2)`,
+        [customer.rows[0].customer_id, orderId]
+      );
+    }
+
+    await db.query("COMMIT");
+    res.json({ success: true });
+  } catch (err) {
+    await db.query("ROLLBACK");
+    console.error("Error responding to proposal:", err);
+    res.status(500).json({ error: "Failed to respond" });
+  }
+});
+
+
+
+//payment method
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
+
+app.use(bodyParser.json());
+
+app.post("/ssl-request", async (req, res) => {
+  try {
+    const { amount, address, orderId } = req.body;
+
+    if (!amount || !address?.city || !address?.region || !address?.roadSector || !orderId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const data = {
+      value_a: orderId,
+      total_amount: amount,
+      currency: 'BDT',
+      tran_id: 'TRX_' + Date.now(),
+      success_url: 'http://localhost:4000/ssl-payment-success',
+      fail_url: 'http://localhost:4000/ssl-payment-fail',
+      cancel_url: 'http://localhost:4000/ssl-payment-cancel',
+      ipn_url: 'http://localhost:4000/ssl-payment-ipn',
+      shipping_method: 'Courier',
+      product_name: 'Checkout Order',
+      product_category: 'Ecommerce',
+      product_profile: 'general',
+      cus_name: 'Customer Name',
+      cus_email: 'customer@example.com',
+      cus_add1: address.roadSector || 'Default Road',
+      cus_add2: address.region || 'Default Region',
+      cus_city: address.city || 'Default City',
+      cus_state: 'State',
+      cus_postcode: '1200',
+      cus_country: 'Bangladesh',
+      cus_phone: '01700000000',
+      cus_fax: '01700000000',
+      ship_name: 'Customer Name',
+      ship_add1: address.roadSector || 'Default Road',
+      ship_add2: address.region || 'Default Region',
+      ship_city: address.city || 'Default City',
+      ship_state: 'State',
+      ship_postcode: '1200',
+      ship_country: 'Bangladesh',
+    };
+
+    console.log("Sending to SSLCommerz:", data);
+
+    const sslcz = new SSLCommerzPayment(process.env.STORED_ID, process.env.STORED_PASSWORD, false);
+
+    sslcz.init(data).then(apiResponse => {
+      const GatewayPageURL = apiResponse.GatewayPageURL;
+
+      if (GatewayPageURL) {
+        console.log("Redirecting to:", GatewayPageURL);
+        return res.status(200).json({ GatewayPageURL });
+      } else {
+        console.error("No Gateway URL in response");
+        return res.status(500).json({ message: "SSLCommerz failed to generate payment link" });
+      }
+    }).catch(err => {
+      console.error("SSLCommerz error:", err.response?.data || err.message || err);
+      res.status(500).json({ message: "Payment initialization failed", error: err.message });
+    });
+  } catch (err) {
+    console.error("Unexpected error in /ssl-request:", err);
+    res.status(500).json({ message: "Unexpected error" });
+  }
+});
+
+
+
+app.post("/ssl-payment-success", async (req, res) => {
+  const orderId = req.body?.value_a;
+
+  try {
+    if (!orderId) {
+      console.error("Missing orderId in SSLCommerz success payload");
+      return res.redirect("http://localhost:3000/paymentPage?status=failed");
+    }
+
+
+    await db.query(
+      `UPDATE customer_order SET status = 'CONFIRMED' WHERE order_id = $1`,
+      [orderId]
+    );
+
+    await db.query(
+      `Update payment set status ='successful' where order_id=$1`,
+      [orderId]
+    );
+
+
+    return res.redirect("http://localhost:3000/paymentPage?status=success");
+  } catch (err) {
+    console.error("Error updating order after success:", err);
+    return res.redirect("http://localhost:3000/paymentPage?status=error");
+  }
+});
+
+
+
+
+app.post("/ssl-payment-fail", async (req, res) => {
+  const orderId = req.body?.value_a;
+
+  if (orderId) {
+    await db.query(
+      `Update payment set status ='failed' where order_id=$1`,
+      [orderId]
+    );
+  }
+
+  return res.redirect("http://localhost:3000/paymentPage?status=failed");
+});
+
+
+app.post("/ssl-payment-cancel", async (req, res, next) => {
+  return res.status(200).json({
+    data: req.body
+  })
+});
+
+app.post("/ssl-payment-ipn", async (req, res, next) => {
+  return res.status(200).json({
+    data: req.body
+  })
+});
+
+
 
 
 

@@ -104,6 +104,7 @@
     "side-channel-weakmap": "^1.0.2",
     "simple-update-notifier": "^2.0.0",
     "split2": "^4.2.0",
+    "sslcommerz-lts": "^1.1.0",
     "statuses": "^2.0.1",
     "supports-color": "^5.5.0",
     "to-regex-range": "^5.0.1",
