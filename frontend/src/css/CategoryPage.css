@@ -1,6 +1,6 @@
 /* CategoryPage.css */
 
-body {
+.body {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f9f9fb;
@@ -82,8 +82,6 @@ websiteHeader {
   text-align: center;
 }
 
-/*  */
-
 
 
 .pagination-buttons {
@@ -124,4 +122,4 @@ websiteHeader {
     flex-direction: column;
     align-items: stretch;
   }
-}
+} 

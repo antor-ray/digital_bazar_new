@@ -41,18 +41,18 @@ const WishlistPage = () => {
   };
 
   return (
-    <div className="wishlist-container">
+    <div className="container">
       <div className="websiteHeader full-width">
         <img className="iconImage" src={icon} alt="Site Icon" />
         <span id="websiteName">DIGITAL BAZAAR</span>
       </div>
 
       
-      <nav className="wishlist-nav full-width">
+      <nav className="navbar">
         <button onClick={() => navigate("/")}>🏠 Home</button>
         
         <button onClick={() => navigate("/CartItems")}>🛒 Cart</button>
-        <button onClick={() => navigate("/profile")}>👤 Profile</button>
+        <button onClick={() => navigate("/customerProfile")}>👤 Profile</button>
       </nav>
 
       <h1 className="wishlist-title">My Wishlist</h1>
@@ -63,7 +63,7 @@ const WishlistPage = () => {
         ) : (
           wishlistItems.map(item => (
             <div key={item.product_id} className="wishlist-card small-card">
-              <img src={item.image_url || 'https://via.placeholder.com/100'} alt={item.product_name} className="wishlist-img" />
+              <img src={`http://localhost:4000/images/${item.image_url}` || 'https://via.placeholder.com/100'} alt={item.product_name} className="wishlist-img" />
               <div className="wishlist-info">
                 <div className="wishlist-header">
                   <h3>{item.product_name}</h3>

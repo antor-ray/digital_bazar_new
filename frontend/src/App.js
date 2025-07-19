@@ -18,6 +18,7 @@ import DeliveryManRegistration from './route/DeliveryManRegistration';
 import DeliveryManPage from './route/DeliveryManPage'
 import CustomerProfile from './route/CustomerProfile';
 import DeliveryManProfile from './route/DeliveryManProfile';
+import SellerSellingHistoryPage from "./route/SellerSellingHistoryPage";
 
 const App = () => {
   return (
@@ -53,6 +54,7 @@ const App = () => {
           <Route path="/paymentPage" element={<PaymentSuccess />} />
           <Route path="/customerProfile" element={<CustomerProfile />} />
           <Route path="/deliveryman/profile" element={<DeliveryManProfile />} />
+          <Route path="/SellerPage/SellerSellingHistoryPage" element={<SellerSellingHistoryPage />} />
 
 
         </Routes>

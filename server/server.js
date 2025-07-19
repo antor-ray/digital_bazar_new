@@ -36,42 +36,82 @@ app.use(cookieParser());
 app.use("/images", express.static(path.join(__dirname, "/images")));
 
 
+
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await db.query(
-      "SELECT * FROM customer WHERE email = $1 AND password = $2",
+    let user = null;
+    let role = null;
+    let userIdField = null; // To store the specific ID field name (e.g., 'customer_id')
+
+    // 1. Check Customer table
+    const customerResult = await db.query(
+      "SELECT customer_id, email, password, customer_name FROM customer WHERE email = $1 AND password = $2",
       [email, password]
     );
 
-    // if (result.rows.length > 0) {
-    //   res.status(200).json({ customer: result.rows[0] });
-    //   console.log("Login successful:", result.rows[0].customer_id);
-    // } else {
-    if (result.rows.length <= 0) {
+    if (customerResult.rows.length > 0) {
+      user = customerResult.rows[0];
+      role = 'customer';
+      userIdField = 'customer_id';
+    } else {
+      // 2. If not a customer, check Seller table
+      const sellerResult = await db.query(
+        "SELECT seller_id, email, password, business_name AS name FROM seller WHERE email = $1 AND password = $2",
+        [email, password]
+      );
+
+      if (sellerResult.rows.length > 0) {
+        user = sellerResult.rows[0];
+        role = 'seller';
+        userIdField = 'seller_id';
+      } else {
+        // 3. If not a seller, check Delivery Man table
+        const deliveryManResult = await db.query(
+          "SELECT id, email, password, name FROM delivery_man WHERE email = $1 AND password = $2",
+          [email, password]
+        );
+
+        if (deliveryManResult.rows.length > 0) {
+          user = deliveryManResult.rows[0];
+          role = 'delivery_man';
+          userIdField = 'id';
+        }
+      }
+    }
+
+    // If no user found in any table
+    if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-    let tokenData = {
-      customer_id: result.rows[0].customer_id,
-       role: 'customer',
+
+    // User found, create token data
+    const tokenData = {
+      id: user[userIdField], // Use the dynamically determined ID field
+      role: role,
+      email: user.email,
+      name: user.name || user.business_name // Use name or business_name
     };
-    // const newTokenData == append role here and pass it into jwt
-   // console.log(result.rows);
+    
+
     const secretkey = process.env.JWT_SECRET_KEY;
     const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
 
     return res
       .cookie("token", token, {
         httpOnly: true,
-        sameSite: "lax",
-        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: "lax", // Consider 'strict' or 'none' with secure:true for production
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        // secure: process.env.NODE_ENV === 'production', // Use secure in production with HTTPS
       })
       .status(200)
       .json({
-        customer: result.rows[0],
+        user: user, // Return the authenticated user's data
         token: token,
+        role: role // Also send the role for frontend convenience
       });
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error" });
@@ -842,6 +882,14 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
       details, short_des, tags
     } = req.body;
 
+    const productName = await db.query(
+      "SELECT * FROM product WHERE product_name = $1",
+      [name]);
+    if (productName.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Product already exists" });
+    } 
+
+
     // 1. Get category_id from name
     const categoryRes = await db.query(
       "SELECT category_id FROM category WHERE category_name = $1",
@@ -1109,6 +1157,7 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticatedSeller, async (req, r
     
     await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
     await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
+
     await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
     await db.query("DELETE FROM sell WHERE product_id = $1 AND seller_id = $2", [productId, seller_id]);
     await db.query("DELETE FROM product WHERE product_id = $1", [productId]);
@@ -1503,7 +1552,594 @@ app.post("/ssl-payment-ipn", async (req, res, next) => {
 
 
 
+// Endpoint to fetch top sellers based on product sales
 
+app.get("/api/top-sellers", async (req, res) => {
+  try {
+    const productSalesQueryResult = await db.query(`
+      SELECT
+          oi.product_id,
+          s.seller_id,
+          COUNT(oi.product_id) AS total_quantity_sold
+      FROM
+          payment p
+      JOIN
+          order_item oi ON p.order_id = oi.order_id
+      JOIN
+          sell s ON oi.product_id = s.product_id
+      WHERE
+          p.status = 'successful'
+      GROUP BY
+          oi.product_id, s.seller_id;
+    `);
+
+    const productSales = productSalesQueryResult.rows;
+
+    // If no successful product sales found, return an empty list.
+    if (productSales.length === 0) {
+      return res.json({ success: true, topSellers: [] });
+    }
+
+    const sellerSales = {}; // Stores { sellerId: totalSalesQuantity }
+    const uniqueSellerIds = new Set(); // To efficiently get unique seller IDs for the next query
+
+    productSales.forEach(row => {
+      const sellerId = row.seller_id;
+      // Ensure quantity is parsed as an integer, as COUNT from SQL might return a string.
+      const quantity = parseInt(row.total_quantity_sold, 10);
+
+      sellerSales[sellerId] = (sellerSales[sellerId] || 0) + quantity;
+      uniqueSellerIds.add(sellerId);
+    });
+
+    // If no unique sellers found from the sales data, return an empty list.
+    if (uniqueSellerIds.size === 0) {
+        return res.json({ success: true, topSellers: [] });
+    }
+
+    const sellersQueryResult = await db.query(
+      `SELECT seller_id, business_name FROM seller WHERE seller_id = ANY($1)`,
+      [Array.from(uniqueSellerIds)] // Convert Set to Array for the SQL query
+    );
+
+    const sellerDetails = {}; // Stores { sellerId: businessName }
+    sellersQueryResult.rows.forEach(row => {
+      sellerDetails[row.seller_id] = row.business_name;
+    });
+
+    const topSellersList = Object.entries(sellerSales)
+      .map(([sellerId, salesCount]) => ({
+        id: sellerId,
+        // Provide a fallback name if a seller's business_name is not found (e.g., deleted seller).
+        name: sellerDetails[sellerId] || `Unknown Seller (${sellerId})`,
+        sales: salesCount,
+      }))
+      .sort((a, b) => b.sales - a.sales) // Sort in descending order based on 'sales'
+      .slice(0, 10); // Get only the top 10 results
+
+    // Send the top sellers list as a JSON response.
+    res.json({ success: true, topSellers: topSellersList });
+
+  } catch (err) {
+    // Log the error for debugging purposes on the server.
+    console.error("Error fetching top sellers:", err);
+    // Send a 500 Internal Server Error response to the client.
+    res.status(500).json({ success: false, message: "Server error while fetching top sellers." });
+  }
+});
+
+
+
+
+///filtering products from home page
+
+app.get("/api/v1/productFilter", async (req, res) => {
+  try {
+    const {
+      maxPrice,
+      categories,
+      stockStatus,
+      ratings,
+      search,
+      maxDiscount, // Destructure maxDiscount
+      sellerIds,   // Destructure sellerIds
+      // We will now ignore sortBy and sortDirection if maxDiscount is present
+      sortBy,
+      sortDirection
+    } = req.query;
+
+    // Start building the query with better subquery handling
+    let query = `
+      SELECT DISTINCT
+        p.product_id,
+        p.product_name,
+        p.product_details,
+        p.tags,
+        p.short_des,
+        s.selling_price,
+        s.actual_price,
+        s.discount,
+        s.stock,
+        c.category_name,
+        i.image_url,
+        COALESCE(
+          (SELECT AVG(rating)::numeric(10,2)
+            FROM review
+            WHERE product_id = p.product_id
+          ), 0
+        ) as average_rating
+      FROM product p
+      JOIN sell s ON p.product_id = s.product_id
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN (
+        SELECT DISTINCT ON (product_id)
+          product_id,
+          image_url
+        FROM image
+        ORDER BY product_id, image_id
+      ) i ON p.product_id = i.product_id
+      ${sellerIds ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id` : ''}
+      WHERE 1=1
+    `;
+
+    const queryParams = [];
+    let paramCount = 1;
+
+    // Add price filter with proper type casting
+    if (maxPrice && !isNaN(maxPrice)) {
+      query += ` AND s.selling_price <= $${paramCount}`;
+      queryParams.push(Number(maxPrice));
+      paramCount++;
+    }
+
+    // Add categories filter with proper array handling
+    if (categories && categories.length > 0) {
+      const categoryArray = categories.split(',').map(cat => cat.trim());
+      if (categoryArray.length > 0) {
+        query += ` AND c.category_name = ANY($${paramCount})`;
+        queryParams.push(categoryArray);
+        paramCount++;
+      }
+    }
+
+    // Add stock status filter
+    if (stockStatus) {
+      if (stockStatus === 'inStock') {
+        query += ` AND s.stock > 0`;
+      } else if (stockStatus === 'outOfStock') {
+        query += ` AND s.stock = 0`;
+      }
+    }
+
+    // Add search filter with proper ILIKE handling
+    if (search && search.trim()) {
+      query += ` AND (
+        p.product_name ILIKE $${paramCount}
+        OR p.short_des ILIKE $${paramCount}
+        OR p.tags ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search.trim()}%`);
+      paramCount++;
+    }
+
+    // Add ratings filter with proper number handling
+    if (ratings && ratings.length > 0) {
+      const ratingArray = ratings.split(',')
+        .map(Number)
+        .filter(r => !isNaN(r) && r >= 0 && r <= 5);
+
+      if (ratingArray.length > 0) {
+        query += ` AND (
+          SELECT COALESCE(AVG(rating), 0)
+          FROM review
+          WHERE product_id = p.product_id
+        ) >= ANY($${paramCount})`;
+        queryParams.push(ratingArray);
+        paramCount++;
+      }
+    }
+
+    // Add maxDiscount filter
+    if (maxDiscount && !isNaN(maxDiscount)) {
+      query += ` AND s.discount <= $${paramCount}`;
+      queryParams.push(Number(maxDiscount));
+      paramCount++;
+    }
+
+    // Add sellerIds filter
+    if (sellerIds && sellerIds.length > 0) {
+      const sellerIdArray = sellerIds.split(',').map(id => id.trim());
+      if (sellerIdArray.length > 0) {
+        query += ` AND s.seller_id = ANY($${paramCount})`;
+        queryParams.push(sellerIdArray);
+        paramCount++;
+      }
+    }
+
+    // Force sorting by discount in descending order if maxDiscount is present
+    let orderByClause = ` ORDER BY p.product_id DESC`; // Default sort
+
+    if (maxDiscount && !isNaN(maxDiscount)) {
+      orderByClause = ` ORDER BY s.discount DESC`; // Always sort by discount DESC if maxDiscount is used
+    } else if (sortBy) { // Only apply other sortBy if maxDiscount is NOT used
+      switch (sortBy) {
+        case 'price':
+          orderByClause = ` ORDER BY s.selling_price ${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
+          break;
+        case 'name':
+          orderByClause = ` ORDER BY p.product_name ${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
+          break;
+        // Add more cases for other sorting options (e.g., 'rating', 'popularity', 'newest')
+        default:
+          orderByClause = ` ORDER BY p.product_id DESC`; // Fallback
+      }
+    }
+
+    query += orderByClause;
+
+    //console.log('Query:', query); // For debugging
+    console.log('Params:', queryParams); // For debugging
+
+    const results = await db.query(query, queryParams);
+
+    res.json({
+      status: "success",
+      count: results.rows.length,
+      products: results.rows,
+    });
+
+  } catch (err) {
+    console.error('Error in product filtering:', err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to filter products",
+      error: err.message
+    });
+  }
+});
+
+app.get("/api/v1/sellerProductFilter", async (req, res) => {
+  try {
+    const {
+      maxPrice,
+      categories,
+      stockStatus,
+      ratings,
+      search,
+      maxDiscount,
+      sellerId,
+      // filter: sortBy,
+    } = req.query;
+
+    //console.log(sortBy);
+    // Start building the query
+    let query = `
+      SELECT
+        p.product_id,
+        p.product_name,
+        p.product_details,
+        p.tags,
+        p.short_des,
+        s.selling_price,
+        s.actual_price,
+        s.discount,
+        s.stock,
+        c.category_name,
+        i.image_url,
+        COALESCE(
+          (SELECT AVG(r.rating)::numeric(10,2)
+           FROM review r
+           WHERE r.product_id = p.product_id
+          ), 0
+        ) as average_rating,
+        COALESCE(
+          (SELECT COUNT(oi.product_id)
+           FROM order_item oi
+           WHERE oi.product_id = p.product_id
+          ), 0
+        ) as total_sales_quantity
+      FROM product p
+      JOIN sell s ON p.product_id = s.product_id
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN (
+        SELECT DISTINCT ON (product_id)
+          product_id,
+          image_url
+        FROM image
+        ORDER BY product_id, image_id
+      ) i ON p.product_id = i.product_id
+      WHERE 1=1
+    `;
+
+    const queryParams = [];
+    let paramCount = 1;
+
+    // Add mandatory sellerId filter
+    if (sellerId) {
+      query += ` AND s.seller_id = $${paramCount}`;
+      queryParams.push(sellerId);
+      paramCount++;
+    } else {
+      return res.status(400).json({
+        status: "error",
+        message: "Seller ID is required for this endpoint.",
+      });
+    }
+
+    // Add price filter
+    if (maxPrice && !isNaN(maxPrice) && Number(maxPrice) > 0) {
+      query += ` AND s.selling_price <= $${paramCount}`;
+      queryParams.push(Number(maxPrice));
+      paramCount++;
+    }
+
+    // FIX: Categories filter - handle case insensitive matching
+    if (categories && categories.length > 0) {
+      const categoryArray = categories.split(',').map(cat => cat.trim());
+      if (categoryArray.length > 0) {
+        query += ` AND LOWER(c.category_name) = ANY($${paramCount})`;
+        queryParams.push(categoryArray.map(cat => cat.toLowerCase()));
+        paramCount++;
+      }
+    }
+
+    // Add stock status filter
+    if (stockStatus && stockStatus !== 'all') {
+      if (stockStatus === 'inStock') {
+        query += ` AND s.stock > 0`;
+      } else if (stockStatus === 'outOfStock') {
+        query += ` AND s.stock = 0`;
+      }
+    }
+
+    // FIX: Search filter - use separate parameters for each field
+    if (search && search.trim()) {
+      query += ` AND (
+        p.product_name ILIKE $${paramCount}
+        OR p.short_des ILIKE $${paramCount}
+        OR p.tags ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search.trim()}%`);
+      paramCount++;
+    }
+
+    // FIX: Ratings filter - should be OR condition, not AND
+    if (ratings && ratings.length > 0) {
+      const ratingArray = ratings.split(',')
+        .map(Number)
+        .filter(r => !isNaN(r) && r >= 0 && r <= 5);
+
+      if (ratingArray.length > 0) {
+        // Create OR conditions for each rating
+        const ratingConditions = ratingArray.map(() => {
+          const condition = `COALESCE(
+            (SELECT AVG(r.rating) FROM review r WHERE r.product_id = p.product_id), 0
+          ) >= $${paramCount}`;
+          queryParams.push(ratingArray[paramCount - queryParams.length - 1]);
+          paramCount++;
+          return condition;
+        });
+        
+        query += ` AND (${ratingConditions.join(' OR ')})`;
+      }
+    }
+    let orderByClause = ` ORDER BY p.product_id DESC`;
+    // Add maxDiscount filter
+    if (maxDiscount && !isNaN(maxDiscount) && Number(maxDiscount) > 0) {
+      query += ` AND s.discount <= $${paramCount}`;
+      queryParams.push(Number(maxDiscount));
+
+      paramCount++;
+      
+    }
+
+    // Sorting logic
+    
+
+    // switch (sortBy) {
+    //   case 'highest_selling':
+    //     orderByClause = ` ORDER BY total_sales_quantity DESC`;
+    //     break;
+    //   case 'lowest_selling':
+    //     orderByClause = ` ORDER BY total_sales_quantity ASC`;
+    //     break;
+    //   case 'highest_rated':
+    //     orderByClause = ` ORDER BY average_rating DESC`;
+    //     break;
+    //   case 'lowest_rated':
+    //     orderByClause = ` ORDER BY average_rating ASC`;
+    //     break;
+    //   case 'latest':
+    //   default:
+    //     orderByClause = ` ORDER BY p.product_id DESC`;
+    //     break;
+    // }
+
+    query += orderByClause;
+
+    console.log('Final Query:', query);
+    console.log('Final Params:', queryParams);
+
+    const results = await db.query(query, queryParams);
+
+    // FIX: Map database fields to frontend expected format
+    const mappedProducts = results.rows.map(row => ({
+      id: row.product_id,
+      name: row.product_name,
+      details: row.product_details,
+      tags: row.tags,
+      short_des: row.short_des,
+      price: row.selling_price,
+      actual_price: row.actual_price,
+      discount: row.discount,
+      stock: row.stock,
+      category: row.category_name,
+      images: row.image_url ? [row.image_url] : [],
+      average_rating: row.average_rating,
+      total_sales: row.total_sales_quantity,
+      status: row.stock > 0 ? "Active" : "Out of Stock"
+    }));
+
+    res.json({
+      status: "success",
+      count: mappedProducts.length,
+      products: mappedProducts,
+    });
+
+  } catch (err) {
+    console.error('Error in product filtering:', err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to filter products",
+      error: err.message
+    });
+  }
+});
+
+
+// Add this new endpoint to your server.js file
+app.get("/api/v1/sellerSellingHistory", async (req, res) => {
+  try {
+    const { sellerId, sortBy, month } = req.query;
+
+    if (!sellerId) {
+      return res.status(400).json({
+        status: "error",
+        message: "Seller ID is required for fetching selling history.",
+      });
+    }
+
+    // Prepare base query and parameters
+    let query = `
+      SELECT
+        p.product_id,
+        p.product_name,
+        c.category_name,
+        s.sell_date,
+        COALESCE(COUNT(p.product_id), 0) as total_quantity_sold
+      FROM product p
+      JOIN sell s ON p.product_id = s.product_id
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN order_item oi ON p.product_id = oi.product_id
+      LEFT JOIN "payment" o ON oi.order_id = o.order_id
+      WHERE s.seller_id = $1 AND o.status = 'successful'
+    `;
+
+    const queryParams = [sellerId];
+    let paramIndex = 2;
+
+    // Filter by month if provided
+    if (month) {
+      query += ` AND TO_CHAR(o.payment_date, 'YYYY-MM') = $${paramIndex}`;
+      queryParams.push(month);
+      paramIndex++;
+    }
+
+    query += `
+      GROUP BY p.product_id, p.product_name, c.category_name, s.sell_date
+    `;
+
+    // Sorting
+    switch (sortBy) {
+      case "highest_quantity":
+        query += ` ORDER BY total_quantity_sold DESC`;
+        break;
+      case "lowest_quantity":
+        query += ` ORDER BY total_quantity_sold ASC`;
+        break;
+      default:
+        query += ` ORDER BY p.product_id DESC`;
+        break;
+    }
+
+    const results = await db.query(query, queryParams);
+
+    res.json({
+      status: "success",
+      count: results.rows.length,
+      totalOrders: results.rows.reduce((sum, row) => sum + parseInt(row.total_quantity_sold), 0), // Add total orders
+      sellingHistory: results.rows,
+    });
+
+    console.log(`Fetched ${results.rows.length} selling history records for month ${month || "ALL"}.`);
+
+  } catch (err) {
+    console.error("Error fetching seller selling history:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch selling history",
+      error: err.message,
+    });
+  }
+});
+
+
+// fetch all orders for seller
+// Add this new endpoint to your server.js file
+
+app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
+  try {
+    // Assuming sellerId is passed as a query parameter from the frontend
+    // For production, consider getting sellerId from authenticated session (e.g., req.user.sellerId)
+    const { sellerId: dummyId } = req.query;
+    const sellerId = parseInt(dummyId,10); // Use dummyId for testing or req.seller_id for authenticated requests
+    if (!sellerId) {
+      return res.status(400).json({
+        status: "error",
+        message: "Seller ID is required to fetch orders this month.",
+      });
+    }
+
+    // Get the current date
+    const now = new Date();
+    // Get the first day of the current month
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Get the last day of the current month
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // SQL query to count distinct orders for the seller's products within the current month
+    // It joins products sold by the seller with order items and then with orders.
+    // DISTINCT ON (o.order_id) ensures each order is counted only once,
+    // even if it contains multiple products from the same seller.
+    const query = `
+      SELECT
+        COUNT(DISTINCT pmt.order_id) AS orders_this_month
+      FROM payment pmt
+      JOIN order_item oi ON pmt.order_id = oi.order_id
+      JOIN sell s ON oi.product_id = s.product_id
+      
+      WHERE s.seller_id = $1
+        AND pmt.payment_date >= $2
+        AND pmt.payment_date <= $3
+        AND pmt.status = 'successful';
+    `;
+
+    const queryParams = [sellerId, firstDayOfMonth, lastDayOfMonth];
+
+    console.log('Executing orders this month query:', query);
+    console.log('With parameters:', queryParams);
+
+    const result = await db.query(query, queryParams);
+
+    // The count will be in results.rows[0].orders_this_month
+    const ordersThisMonth = result.rows[0]?.orders_this_month || 0;
+
+    res.json({
+      status: "success",
+      ordersThisMonth: parseInt(ordersThisMonth, 10), // Ensure it's an integer
+    });
+
+    console.log(`Fetched ${ordersThisMonth} orders this month for seller ${sellerId}.`);
+
+  } catch (err) {
+    console.error('Error fetching orders this month:', err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch orders this month",
+      error: err.message
+    });
+  }
+});
 
 
 
