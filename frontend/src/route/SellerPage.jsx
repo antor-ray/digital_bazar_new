@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, use } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import icon from "../images/Icon.png";
-
 
 import {
   Plus,
@@ -21,22 +20,45 @@ import "../css/SellerPage.css";
 const SellerDashboard = () => {
   const navigate = useNavigate();
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [sellerName, setSellerName] = useState('');
+  const [sellerName, setSellerName] = useState("");
+  const [sellerId, setSellerId] = useState(null);
   const fileInputRef = useRef(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
+  const [ordersThisMonth, setOrdersThisMonth] = useState(0);
   // for search bar
   const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 6; // or whatever number fits your layout
+  const productsPerPage = 9; // or whatever number fits your layout
 
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    const [showSidebar, setShowSidebar] = useState(false);
+    
+    // State to manage expanded sections
+      const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+      const [selectedCategories, setSelectedCategories] = useState([]);
+      const [selectedRatings, setSelectedRatings] = useState([]);
+      const [stockStatus, setStockStatus] = useState("all");
+      const [search, setSearch] = useState("");
+      const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+      const [filteredProducts, setFilteredProducts] = useState([]);
+
+  // const filteredProducts = products.filter((product) =>
+  //   product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // );
 
   // Sample products data
+
+
+    const [expandedSections, setExpandedSections] = useState({
+      priceRange: false,
+      categories: false,
+      stockStatus: false,
+      discountRange: false,
+      ratings: false,
+      //topSellers: false, // Changed to true to expand Top Sellers on load
+    });
 
   // Form state for adding new product
   const [newProduct, setNewProduct] = useState({
@@ -53,48 +75,156 @@ const SellerDashboard = () => {
   });
 
   const categories = [
-    "Electronics",
-    "Clothing",
-    "Home & Garden",
-    "Sports & Outdoors",
-    "Books",
-    "Beauty & Health",
-    "Toys & Games",
-    "Automotive",
-  ];
-
-  const fetchSellerProducts = async () => {
-    try {
-      // Make a GET request to the new endpoint you created on the server
-      const response = await axios.get(
-        "http://localhost:4000/SellerPage/products",
-        {
-          withCredentials: true,
-        }
-      );
-      if (response.data.status === "success") {
-        // Map over the fetched products to ensure consistency for ProductCard
-        const fetchedProducts = response.data.products.map((p) => ({
-          ...p,
-          // Ensure 'images' is an array, even if it's null from DB (e.g., no images for a product)
-          // The backend now returns 'images' as an array, but this is a good safeguard.
-          images: p.images || [],
-          // Derive 'status' from 'stock' as per your ProductCard logic
-          status: p.stock > 0 ? "Active" : "Out of Stock",
-        }));
-        setProducts(fetchedProducts);
-        console.log("Fetched seller products:", fetchedProducts);
-      } else {
-        console.error(
-          "Failed to fetch seller products:",
-          response.data.message
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching seller products:", error);
-      // Handle error, e.g., show a message to the user
-    }
+  "Electronics",
+  "Clothing", 
+  "Books",
+  "Home & Kitchen", // Make sure this matches your database
+  "Beauty",
+  "Furniture",
+  "Toys",
+  "Sports",
+  "Grocery",
+  // Add other categories that exist in your database
+];
+    const toggleSection = (section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
+
+  // 1. Fix the fetchSellerProducts function:
+const fetchSellerProducts = async () => {
+  try {
+    const response = await axios.get(
+      "http://localhost:4000/SellerPage/products",
+      {
+        withCredentials: true,
+      }
+    );
+    if (response.data.status === "success") {
+      const fetchedProducts = response.data.products.map((p) => ({
+        ...p,
+        images: p.images || [],
+        status: p.stock > 0 ? "Active" : "Out of Stock",
+      }));
+      setProducts(fetchedProducts);
+      setFilteredProducts(fetchedProducts); // Set to seller's products, not all products
+      console.log("Fetched seller products:", fetchedProducts);
+    } else {
+      console.error(
+        "Failed to fetch seller products:",
+        response.data.message
+      );
+    }
+  } catch (error) {
+    console.error("Error fetching seller products:", error);
+  }
+};
+
+// useEffect(() => {
+//   if (sellerId) {
+//     applyFiltersToBackend();
+//   }
+// }, [sellerId]);
+
+// Add this useEffect to apply filters automatically when filter values change
+// useEffect(() => {
+//   if (sellerId) {
+//     const timeoutId = setTimeout(() => {
+//       applyFiltersToBackend();
+//     }, 500); // Debounce for 500ms
+    
+//     return () => clearTimeout(timeoutId);
+//   }
+// }, [priceRange, selectedCategories, stockStatus, selectedRatings, search, discountRange, sellerId]);
+
+
+ // Add these state variables at the top of your component (where other useState declarations are)
+// const [sortBy, setSortBy] = useState('');
+// const [sortDirection, setSortDirection] = useState('desc');
+// Fixed applyFiltersToBackend function
+const applyFiltersToBackend = async () => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    // IMPORTANT: Always add seller ID first
+    if (sellerId) {
+      queryParams.append("sellerId", sellerId);
+      console.log("Adding seller ID to filters:", sellerId);
+    } else {
+      console.error("Seller ID is required");
+      return;
+    }
+
+    // FIX: Only add filters if they have meaningful values
+    if (priceRange.max && priceRange.max > 0) {
+      queryParams.append("maxPrice", priceRange.max);
+    }
+    
+    if (selectedCategories.length > 0) {
+      queryParams.append("categories", selectedCategories.join(","));
+    }
+    
+    if (stockStatus && stockStatus !== "all") {
+      queryParams.append("stockStatus", stockStatus);
+    }
+    
+    if (selectedRatings.length > 0) {
+      queryParams.append("ratings", selectedRatings.join(","));
+    }
+    
+    // FIX: Use the correct search state
+    if (search && search.trim()) {
+      queryParams.append("search", search.trim());
+    }
+    
+    if (discountRange.max && discountRange.max > 0) {
+      queryParams.append("maxDiscount", discountRange.max);
+    }
+
+    const filterUrl = `http://localhost:4000/api/v1/sellerProductFilter?${queryParams.toString()}`;
+    console.log("Filter URL:", filterUrl);
+    
+    const response = await axios.get(filterUrl);
+
+    console.log("Filter response:", response.data);
+    
+    if (response.data.status === "success") {
+      setFilteredProducts(response.data.products);
+      console.log("Filtered products set:", response.data.products);
+    } else {
+      console.error("Filter failed:", response.data.message);
+    }
+    
+  } catch (error) {
+    console.error("Error applying filters:", error);
+    if (error.response?.data?.message) {
+      console.error("Server error:", error.response.data.message);
+    }
+  }
+};
+
+   // 2. Update the clearFilters function:
+const clearFilters = () => {
+  setPriceRange({ min: "", max: "" });
+  setSelectedCategories([]);
+  setSelectedRatings([]);
+  setStockStatus("all");
+  setSearch(""); // Clear search
+  setDiscountRange({ min: 0, max: 0 });
+  setExpandedSections({
+    discountRange: false,
+    priceRange: false,
+    categories: false,
+    stockStatus: false,
+    ratings: false,
+  });
+  // Reset to original products
+  setFilteredProducts(products);
+};
+
+
 
   useEffect(() => {
     const checkAuthSeller = async () => {
@@ -103,17 +233,16 @@ const SellerDashboard = () => {
           method: "GET",
           credentials: "include",
         });
-        
-        
-       const data = await res.json();
 
-        if(res.ok){
+        const data = await res.json();
+
+        if (res.ok) {
           setIsLoggedIn(true);
-        fetchSellerProducts();
-        setSellerName(data.sellerName);
+          fetchSellerProducts();
+          setSellerName(data.sellerName);
+          setSellerId(data.seller_id);
+          
         }
-        
-      
       } catch {
         setIsLoggedIn(false);
       }
@@ -123,14 +252,48 @@ const SellerDashboard = () => {
   }, []);
 
   const handleLogout = async () => {
-      try {
-        await axios.post("http://localhost:4000/logout", {}, { withCredentials: true });
-        setIsLoggedIn(false);
-        navigate("/");
-      } catch (err) {
-        console.error("Logout failed", err);
+    try {
+      await axios.post(
+        "http://localhost:4000/logout",
+        {},
+        { withCredentials: true }
+      );
+      setIsLoggedIn(false);
+      navigate("/");
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
+  useEffect(() => {
+    const fetchOrdersThisMonth = async () => {
+    if (!sellerId) {
+      console.log("Seller ID not available, skipping orders this month fetch.");
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `http://localhost:4000/api/v1/sellerStats/ordersThisMonth?sellerId=${sellerId}`,
+        {
+          withCredentials: true,
+        }
+      );
+      if (response.data.status === "success") {
+        setOrdersThisMonth(response.data.ordersThisMonth);
+        console.log("Fetched orders this month:", response.data.ordersThisMonth);
+      } else {
+        console.error("Failed to fetch orders this month:", response.data.message);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching orders this month:", error);
+      if (error.response?.data?.message) {
+        console.error("Server error message:", error.response.data.message);
+      }
+    }
+  };
+
+  fetchOrdersThisMonth();
+  }, [sellerId]);
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -170,17 +333,6 @@ const SellerDashboard = () => {
   };
 
   const editProduct = (product) => {
-    // const processedImages = (product.images || []).map((img) =>
-    //   img.startsWith("http") ? img : `http://localhost:4000/images/${img}`
-    // );
-
-    // const relativeImagePaths = (product.images || []).map((img) =>
-    //   img.startsWith("/images/")
-    //     ? img
-    //     : img.startsWith("http")
-    //     ? new URL(img).pathname
-    //     : `${img}`
-    // );
 
     setNewProduct({
       name: product.name,
@@ -212,7 +364,8 @@ const SellerDashboard = () => {
       !newProduct.details ||
       !newProduct.tags ||
       !newProduct.discount ||
-      !newProduct.short_des
+      !newProduct.short_des ||
+      !newProduct.images
     ) {
       alert("Please fill in all required fields");
       return;
@@ -227,10 +380,11 @@ const SellerDashboard = () => {
     const input = fileInputRef.current;
     const newFiles = input?.files ? Array.from(input.files) : [];
 
-    if (newFiles.length > 4) {
-      alert("You can upload a maximum of 4 images.");
+    if (newFiles.length > 4 || newFiles.length <= 0) {
+      alert("You can upload a maximum of 4 images and minimum 1 images.");
       return;
     }
+
 
     // ✅ Append new image files only
     newFiles.forEach((file) => {
@@ -362,20 +516,20 @@ const SellerDashboard = () => {
           >
             {/* Changed class name */}
             <Eye className="btnIcon" />
-            View
+            
           </button>
           <button className="btn btnEdit" onClick={() => editProduct(product)}>
             {" "}
             {/* Changed class name */}
             <Edit className="btnIcon" />
-            Edit
+            
           </button>
           <button
             onClick={() => deleteProduct(product.id)}
             className="btn btnDanger"
           >
             <Trash2 className="btnIcon" />
-            Delete
+            
           </button>
         </div>
       </div>
@@ -385,50 +539,51 @@ const SellerDashboard = () => {
   return (
     <div className="dashboardContainer">
       <div className="websiteHeader">
-              <img className="iconImage" src={icon} alt="Site Icon" />
-              <span id="websiteName">DIGITAL BAZAAR</span>
-            </div>
+        <img className="iconImage" src={icon} alt="Site Icon" />
+        <span id="websiteName">DIGITAL BAZAAR</span>
+      </div>
       {/* Header */}
       <header className="dashboardHeader">
-        <div className="maxWidthContainer">
-          <div className="headerContent">
-            <div>
-              <h1 className="headerTitle">{sellerName.toUpperCase()}</h1>
-              <p className="headerSubtitle">Welcome back, {sellerName.toUpperCase()} </p>
-            </div>
+        <div className="navbar">
+          <div className="nav-item menu-item"
+            onClick={() => setShowSidebar(!showSidebar)} >  
+            <span className="icon_filter">☰</span>
+          </div>
+          
+          <div>
+            <h1 className="headerTitle">{sellerName.toUpperCase()}</h1>
+            
+          </div>
 
-            <div className="headerActions">
-              <button
-                onClick={() => navigate("/SellerProfilePage")}
-                className="btn btnSecondary"
-              >
-                <Edit className="btnIcon" />
-                Edit Profile
-              </button>
+          <div className="headerActions">
+            <button
+              onClick={() => navigate("/SellerProfilePage")}
+              className="btn btnSecondary"
+            >
+              <Edit className="btnIcon" />
+              Edit Profile
+            </button>
 
-              <button
-                onClick={handleLogout}
-                className="btn btnDanger"
-              >
-                <X className="btnIcon" />
-                Logout
-              </button>
+            <button onClick={handleLogout} className="btn btnDanger">
+              <X className="btnIcon" />
+              Logout
+            </button>
 
-              <button
-                onClick={() => setShowAddProduct(true)}
-                className="btn btnPrimary"
-              >
-                <Plus className="btnIcon" />
-                Add Product
-              </button>
-            </div>
+            <button
+              onClick={() => setShowAddProduct(true)}
+              className="btn btnPrimary"
+            >
+              <Plus className="btnIcon" />
+              Add Product
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="maxWidthContainer">
+      <div className="mainContainer">
         {/* Stats Cards */}
+        {!showSidebar && (
         <div className="statsGrid">
           <div className="statCard">
             <div className="statContent">
@@ -440,11 +595,11 @@ const SellerDashboard = () => {
             </div>
           </div>
           <div className="statCard">
-            <div className="statContent">
-              <DollarSign className="statIcon green" />
+            <div className="statContent" style={{cursor:"pointer"}} onClick={() => navigate("/SellerPage/SellerSellingHistoryPage")}>
+              
               <div>
-                <p className="statLabel">Total Revenue</p>
-                <p className="statValue">$12,543</p>
+                <p className="statValue" >History</p>
+                
               </div>
             </div>
           </div>
@@ -462,25 +617,301 @@ const SellerDashboard = () => {
               <TrendingUp className="statIcon purple" />
               <div>
                 <p className="statLabel">Orders This Month</p>
-                <p className="statValue">156</p>
+                <p className="statValue">{ordersThisMonth}</p>
               </div>
             </div>
           </div>
         </div>
+        )}
 
         {/* Products Section */}
-        <div className="productsWrapper">
 
+        <div className="homePageLayout">
+        {/* Sidebar - only show when showSidebar is true */}
+        {showSidebar && (
+          <div className="permanent-sidebar">
+            <div className="filter-section">
+              <h4>Filter Products</h4>
+              {/* Discount Percentage Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("discountRange")}
+                >
+                  <h5>Discount Percentage</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.discountRange ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.discountRange && (
+                  <div className="discount-filter-content">
+                    <div className="discount-input-row">
+                      <div className="discount-field">
+                        <input
+                          type="number"
+                          placeholder="Maximum Discount (%)"
+                          value={discountRange.max === 0 ? "" : discountRange.max}
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              max: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                    </div>
+                    <div className="discount-slider">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={discountRange.max || 0}
+                        onChange={(e) =>
+                          setDiscountRange((prev) => ({
+                            ...prev,
+                            max: Number(e.target.value),
+                          }))
+                        }
+                        className="single-slider"
+                      />
+                    </div>
+                    {discountRange.max > 0 && (
+                      <div className="discount-range-text">
+                        0% - {discountRange.max}%
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Price Range Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("priceRange")}
+                >
+                  <h5>Price Range</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.priceRange ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.priceRange && (
+                  <div className="price-filter-content">
+                    <div className="price-input-row">
+                      <div className="price-field">
+                        <input
+                          type="number"
+                          placeholder="Maximum Price"
+                          value={priceRange.max === 0 ? "" : priceRange.max}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="price-slider">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100000"
+                        value={priceRange.max || 0}
+                        onChange={(e) =>
+                          setPriceRange((prev) => ({
+                            ...prev,
+                            max: Number(e.target.value),
+                          }))
+                        }
+                        className="single-slider"
+                      />
+                    </div>
+                    {priceRange.max > 0 && (
+                      <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Category Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("categories")}
+                >
+                  <h5>Categories</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.categories ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.categories && (
+                  <div className="checkbox-group">
+                    {[
+                      "Electronics",
+                      "Clothing",
+                      "Books",
+                      "Home & Kitchen",
+                      "Beauty",
+                      "Furniture",
+                      "Toys",
+                      "Sports",
+                      "Grocery",
+                    ].map((category) => (
+                      <label key={category} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(category)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCategories((prev) => [
+                                ...prev,
+                                category,
+                              ]);
+                            } else {
+                              setSelectedCategories((prev) =>
+                                prev.filter((cat) => cat !== category)
+                              );
+                            }
+                          }}
+                        />
+                        {category}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Status Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("stockStatus")}
+                >
+                  <h5>Stock Status</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.stockStatus ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.stockStatus && (
+                  <div className="radio-group">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="all"
+                        checked={stockStatus === "all"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      All Items
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="inStock"
+                        checked={stockStatus === "inStock"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      In Stock
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="outOfStock"
+                        checked={stockStatus === "outOfStock"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      Out of Stock
+                    </label>
+                  </div>
+                )}
+              </div>
+              {/* Ratings Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("ratings")}
+                >
+                  <h5>Ratings</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.ratings ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.ratings && (
+                  <div className="checkbox-group">
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <label key={rating} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedRatings.includes(rating)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRatings((prev) => [...prev, rating]);
+                            } else {
+                              setSelectedRatings((prev) =>
+                                prev.filter((r) => r !== rating)
+                              );
+                            }
+                          }}
+                        />
+                        {rating} Stars & Up
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Apply and Clear Filters Buttons */}
+              <button
+                className="apply-filters-btn"
+                onClick={applyFiltersToBackend}
+              >
+                Apply Filters
+              </button>
+              <button className="clear-filters-btn" onClick={clearFilters}>
+                Clear All Filters
+              </button>
+            </div>
+            
+          </div>
+        )}
+
+
+        <div className="productsWrapper">
           <div className="sectionHeader searchHeader">
             <h2 className="sectionTitle">Your Products</h2>
 
             <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="productSearchInput"
-            />
+  type="text"
+  placeholder="Search products..."
+  value={search}  // Changed from searchQuery to search
+  onChange={(e) => setSearch(e.target.value)}  // Changed to setSearch
+  className="productSearchInput"
+/>
           </div>
 
           <div className="sectionContent">
@@ -489,17 +920,18 @@ const SellerDashboard = () => {
             <div className="productsGrid">
               {" "}
               {/* Changed class name */}
-              {products
-                .filter((p) =>
-                  p.name.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .slice(
-                  (currentPage - 1) * productsPerPage,
-                  currentPage * productsPerPage
-                )
-                .map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+             {filteredProducts
+  .filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()) // Use search instead of searchQuery
+  )
+  .slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  )
+  .map((product) => (
+    <ProductCard key={product.id} product={product} />
+  ))}
+
             </div>
           </div>
           <div
@@ -511,15 +943,7 @@ const SellerDashboard = () => {
                 if (currentPage > 1) setCurrentPage((p) => p - 1);
               }}
               disabled={currentPage === 1}
-              style={{
-                padding: "0.5rem 1rem",
-                marginRight: "1rem",
-                backgroundColor: currentPage === 1 ? "#ccc" : "#2563eb",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: currentPage === 1 ? "not-allowed" : "pointer",
-              }}
+            
             >
               ⬅ Back
             </button>
@@ -527,26 +951,16 @@ const SellerDashboard = () => {
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={
                 currentPage >=
-                Math.ceil(
-                  products.filter((p) =>
-                    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-                  ).length / productsPerPage
-                )
+               Math.ceil(filteredProducts.length / productsPerPage)
               }
-              style={{
-                padding: "0.5rem 1rem",
-                backgroundColor: "#2563eb",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
+            
             >
               Next ➡
             </button>
           </div>
         </div>
       </div>
+        </div>
 
       {/* Add Product Modal */}
       {showAddProduct && (
@@ -560,7 +974,26 @@ const SellerDashboard = () => {
                 onClick={() => setShowAddProduct(false)}
                 className="modalClose"
               >
-                <X size={24} />
+                <X
+                  size={24}
+                  onClick={() => {
+                    setShowAddProduct(false);
+                    setIsEditing(false);
+                    setEditingProductId(null);
+                    setNewProduct({
+                      name: "",
+                      category: "",
+                      price: "",
+                      discount: "",
+                      stock: "",
+                      details: "",
+                      short_des: "",
+                      tags: "",
+                      images: [],
+                    });
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                />
               </button>
             </div>
 
@@ -686,8 +1119,7 @@ const SellerDashboard = () => {
                       placeholder="Product Short description"
                     />
                   </div>
-                
-                </div> 
+                </div>
                 <div className="formGroup">
                   <label className="formLabel">Tags</label>
                   <input

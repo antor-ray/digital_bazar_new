@@ -1,47 +1,188 @@
 // HomePage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { all } from "axios";
 import "../css/homepage.css";
 import icon from "../images/Icon.png";
-
+import CustomerProfile from "./CustomerProfile"; // Assuming this component exists
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const [allProducts, setAllProducts] = useState([]);
-  const [popularLimit, setPopularLimit] = useState(5);
-  const [newestLimit, setNewestLimit] = useState(5);
-  const [recommendedLimit, setRecommendedLimit] = useState(5);
-  const [reviewLimit, setReviewLimit] = useState(3);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [heroImageIndex, setHeroImageIndex] = useState(0);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-
-
-  //notification bar
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await axios.get("http://localhost:4000/api/notifications", {
-        withCredentials: true,
-      });
-      // console.log(res.data.notifications);
-      setNotifications(res.data.notifications); // Make sure backend sends this field
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-    }
-  };
-
 
   const scrollingImages = [
     "/images/cloths1.jpg",
     "/images/cloths2.jpg",
     "/images/device1.jpg",
   ];
+  // Basic state
+  const [allProducts, setAllProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [popularLimit, setPopularLimit] = useState(5);
+  const [newestLimit, setNewestLimit] = useState(5);
+  const [recommendedLimit, setRecommendedLimit] = useState(5);
+  const [reviewLimit, setReviewLimit] = useState(3);
 
+  // User state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState("antor-ray"); // Placeholder
+  const [currentDateTime, setCurrentDateTime] = useState("2025-07-15 19:06:14"); // Placeholder
+
+  // UI state
+  const [heroImageIndex, setHeroImageIndex] = useState(0);
+  const [showSidebar, setShowSidebar] = useState(false); // Changed to true to show sidebar on load
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  // Filter states
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedRatings, setSelectedRatings] = useState([]);
+  const [stockStatus, setStockStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 12;
+  const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+
+  // Top sellers state
+  const [topSellers, setTopSellers] = useState([]);
+  const [isLoadingTopSellers, setIsLoadingTopSellers] = useState(false);
+  const [errorTopSellers, setErrorTopSellers] = useState(null);
+  const [selectedTopSellers, setSelectedTopSellers] = useState([]); // NEW: State for selected top sellers
+
+  // Notification state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
+  // Section expansion state
+  const [expandedSections, setExpandedSections] = useState({
+    priceRange: false,
+    categories: false,
+    stockStatus: false,
+    discountRange: false,
+    ratings: false,
+    topSellers: false, // Changed to true to expand Top Sellers on load
+  });
+
+  const [activeFilters, setActiveFilters] = useState({
+    priceRange: { min: "", max: "" },
+    categories: [],
+    stockStatus: "all",
+    ratings: [],
+    search: "",
+    topSellers: [],
+  });
+
+  // Function to fetch top sellers
+  useEffect(() => {
+    const fetchTopSellersData = async () => {
+      setIsLoadingTopSellers(true);
+      setErrorTopSellers(null);
+      try {
+        const response = await fetch("http://localhost:4000/api/top-sellers");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setTopSellers(data.topSellers);
+        console.log("Fetched top sellers:", data.topSellers);
+      } catch (error) {
+        console.error("Error fetching top sellers:", error);
+        setErrorTopSellers("Failed to load top sellers. Please try again.");
+      } finally {
+        setIsLoadingTopSellers(false);
+      }
+    };
+    fetchTopSellersData();
+  }, []);
+
+  // Fetch products on component mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axios.get("http://localhost:4000/api/v1/products");
+        setAllProducts(res.data.products);
+        setFilteredProducts(res.data.products);
+      } catch (err) {
+        console.error("Product fetch failed", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Add this function to handle sending filters to backend
+  const applyFiltersToBackend = async () => {
+    try {
+      // Construct query parameters based on active filters
+      const queryParams = new URLSearchParams();
+
+      // Add price range if set
+      if (priceRange.max) {
+        queryParams.append("maxPrice", priceRange.max);
+      }
+
+      // Add categories if selected
+      if (selectedCategories.length > 0) {
+        queryParams.append("categories", selectedCategories.join(","));
+      }
+
+      // Add stock status if not "all"
+      if (stockStatus !== "all") {
+        queryParams.append("stockStatus", stockStatus);
+      }
+
+      // Add ratings if selected
+      if (selectedRatings.length > 0) {
+        queryParams.append("ratings", selectedRatings.join(","));
+      }
+
+      // Add search term if present
+      if (search.trim()) {
+        queryParams.append("search", search.trim());
+      }
+
+      // Add discount range if set
+      if (discountRange.max > 0) {
+        queryParams.append("maxDiscount", discountRange.max);
+      }
+
+      // NEW: Add selected top sellers if any
+      if (selectedTopSellers.length > 0) {
+        queryParams.append("sellerIds", selectedTopSellers.join(","));
+      }
+
+      // Make the API call with all filters
+      const response = await axios.get(
+        `http://localhost:4000/api/v1/productFilter?${queryParams.toString()}`
+      );
+
+      // Update the filtered products
+      setFilteredProducts(response.data.products);
+
+      console.log(
+        "Applied filters:",
+        Object.fromEntries(queryParams.entries())
+      );
+    } catch (error) {
+      console.error("Error applying filters:", error);
+    }
+  };
+
+  const getFilteredSortedPaginatedProducts = () => {
+    const startIndex = (currentPage - 1) * productsPerPage;
+    const endIndex = startIndex + productsPerPage;
+    return filteredProducts.slice(startIndex, endIndex);
+  };
+
+  // Update current date/time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const formatted = now.toISOString().slice(0, 19).replace("T", " ");
+      setCurrentDateTime(formatted);
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auth check
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -56,28 +197,63 @@ const HomePage = () => {
     checkAuth();
   }, []);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await axios.get("http://localhost:4000/api/v1/products");
-        setAllProducts(res.data.products);
-      } catch (err) {
-        console.error("Product fetch failed", err);
-      }
-    };
-    fetchProducts();
-  }, []);
-
+  // Hero image rotation
   useEffect(() => {
     const interval = setInterval(() => {
       setHeroImageIndex((prev) => (prev + 1) % scrollingImages.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, [scrollingImages.length]);
+  }, []);
 
+  const clearFilters = () => {
+    setPriceRange({ min: "", max: "" });
+    setSelectedCategories([]);
+    setSelectedRatings([]);
+    setStockStatus("all");
+    setSearch("");
+    setFilteredProducts(allProducts);
+    setDiscountRange({ min: 0, max: 0 });
+    setTopSellers([]);
+    setSelectedTopSellers([]); // NEW: Clear selected top sellers
+    // Reset expanded sections to default collapsed/expanded state
+    setExpandedSections({
+      discountRange: false,
+      topSellers: false,
+      priceRange: false,
+      categories: false,
+      stockStatus: false,
+      ratings: false,
+    });
+  };
+
+  // Toggle functions
+  const toggleSection = (section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Notification functions
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get("http://localhost:4000/api/notifications", {
+        withCredentials: true,
+      });
+      setNotifications(res.data.notifications);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  // Auth functions
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:4000/logout", {}, { withCredentials: true });
+      await axios.post(
+        "http://localhost:4000/logout",
+        {},
+        { withCredentials: true }
+      );
       setIsLoggedIn(false);
       navigate("/");
     } catch (err) {
@@ -85,10 +261,17 @@ const HomePage = () => {
     }
   };
 
+  // Filter products for display (this seems to be a client-side filter,
+  // ensure it's consistent with applyFiltersToBackend if you want server-side filtering)
   const filterProducts = () => {
-    return allProducts.filter(product =>
-      (!categoryFilter || product.category === categoryFilter) &&
-      (!search || product.product_name.toLowerCase().includes(search.toLowerCase()))
+    // This function is currently only filtering by category and search.
+    // If you want to apply all sidebar filters here for sections like "Popular Products",
+    // you'd need to expand this logic. For now, it's used for "All Products" when sidebar is open.
+    return filteredProducts.filter(
+      (product) =>
+        (!categoryFilter || product.category === categoryFilter) &&
+        (!search ||
+          product.product_name.toLowerCase().includes(search.toLowerCase()))
     );
   };
 
@@ -97,41 +280,95 @@ const HomePage = () => {
     const showMore = () => setLimit(products.length);
     const expanded = limit >= products.length;
 
+    const paginatedProducts =
+      title === "All Products"
+        ? getFilteredSortedPaginatedProducts()
+        : products.slice(0, limit);
+
     return (
       <section className="products-section">
         <h2 className="section-title">{title}</h2>
         <div className="products-grid">
-          {products.slice(0, limit).map((product, index) => (
-            <div
-              key={`${product.product_id}-${index}`}
-              className="product-card"
-              onClick={() => navigate(`/product/${product.product_id}`)}
-            >
-              <img
-                src={`http://localhost:4000/images/${product.image_url}` || "https://via.placeholder.com/250?text=No+Image"}
-                alt={product.product_name}
-                className="product-img"
-              />
-              <p className="product-name">{product.product_name}</p>
-              <p className="product-price">
-                Price: <s>৳{product.actual_price}</s>
-              </p>
-              <p className="product-discount">Discount: {product.discount}%</p>
-              <p className="product-actual-price">Selling Price: ৳{product.selling_price}</p>
-            </div>
-          ))}
+          {paginatedProducts.length > 0 ? (
+            paginatedProducts.map((product, index) => (
+              <div
+                key={`${product.product_id}-${index}`}
+                className="product-card"
+                onClick={() => navigate(`/product/${product.product_id}`)}
+              >
+                <img
+                  src={
+                    product.image_url
+                      ? `http://localhost:4000/images/${product.image_url}`
+                      : "https://via.placeholder.com/250?text=No+Image"
+                  }
+                  alt={product.product_name}
+                  className="product-img"
+                />
+                <p className="product-name">{product.product_name}</p>
+                <p className="product-price">
+                  Price: <s>৳{product.actual_price}</s>
+                </p>
+                <p className="product-discount">
+                  Discount: {product.discount}%
+                </p>
+                <p className="product-actual-price">
+                  Selling Price: ৳{product.selling_price}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p>No matching products found.</p>
+          )}
         </div>
-        {products.length > 5 && (
-          <button className="show-more-btn" onClick={expanded ? showLess : showMore}>
-            {expanded ? "See Less" : "See More"}
-          </button>
+
+        {/* Conditionally render pagination or See All button */}
+        {title === "All Products" ? (
+          <div className="pagination-buttons">
+            <button
+              onClick={() => {
+               
+                  setCurrentPage((p) => p - 1);
+                
+              }}
+              disabled={
+                currentPage ===1
+                
+              }
+
+            >
+              ⬅ Back
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={
+                currentPage >=
+                Math.ceil(filteredProducts.length / productsPerPage)
+              }
+            >
+              Next ➡
+            </button>
+          </div>
+        ) : (
+          <div
+            className="see-more-button"
+            style={{ textAlign: "center", marginTop: "1rem" }}
+          >
+            <button
+              onClick={expanded ? showLess : showMore}
+              className="btn btnPrimary"
+            >
+              {expanded ? "See Less" : "See All"}
+            </button>
+          </div>
         )}
       </section>
     );
   };
 
+  // Updated return statement for HomePage component
   return (
-    <div className="container">
+    <div className={`container ${showSidebar ? "with-sidebar" : ""}`}>
       <div className="websiteHeader">
         <img className="iconImage" src={icon} alt="Site Icon" />
         <span id="websiteName">DIGITAL BAZAAR</span>
@@ -139,22 +376,34 @@ const HomePage = () => {
 
       <nav className="navbar">
         <ul className="nav-list">
-          <li className="nav-item menu-item">
-            Menu
-            <ul className="menu-dropdown">
-              <li className="menu-option" onClick={() => navigate("/customerProfile")}>Edit Profile</li>
-              <li className="menu-option" onClick={() => navigate("/settings")}>Settings</li>
-              <li className="menu-option">Offers</li>
-              <li className="menu-option">Help</li>
-              <li className="menu-option">About Us</li>
-            </ul>
+          <li
+            className="nav-item menu-item"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            <span className="icon-menu">☰</span>
           </li>
+
           <li className="nav-item category-item">
             Categories
             <ul className="category-dropdown">
-              <li className="category-option" onClick={() => navigate("/CategoryPage/Electronics")}>Electronics</li>
-              <li className="category-option" onClick={() => navigate("/CategoryPage/Fashion")}>Fashion</li>
-              <li className="category-option" onClick={() => navigate("/CategoryPage/Books")}>Books</li>
+              <li
+                className="category-option"
+                onClick={() => navigate("/CategoryPage/Electronics")}
+              >
+                Electronics
+              </li>
+              <li
+                className="category-option"
+                onClick={() => navigate("/CategoryPage/Fashion")}
+              >
+                Fashion
+              </li>
+              <li
+                className="category-option"
+                onClick={() => navigate("/CategoryPage/Books")}
+              >
+                Books
+              </li>
             </ul>
           </li>
         </ul>
@@ -167,41 +416,70 @@ const HomePage = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
 
+          <span
+            className="nav-action-item"
+            onClick={() => navigate("/CartItems")}
+          >
+            Cart
+          </span>
+          <span
+            className="nav-action-item"
+            onClick={() => navigate("/WishList")}
+          >
+            Wishlist
+          </span>
+
+          <span
+            className="nav-action-item"
+            onClick={() => {
+              fetchNotifications();
+              setShowNotifications(!showNotifications);
+            }}
+          >
+            🔔 Notifications
+          </span>
           {!isLoggedIn ? (
-            <li className="nav-item login-item">
+            <span className="nav-item login-item" >
               Login
               <ul className="login-dropdown">
-                <li className="login-option" onClick={() => navigate("/CustomerLogin")}>Customer</li>
-                <li className="login-option" onClick={() => navigate("/SellerLogin")}>Seller</li>
-                <li className="login-option" onClick={() => navigate("/DeliveryManLogin")}>Delivery Man</li>
+                <li
+                  className="login-option"
+                  onClick={() => navigate("/CustomerLogin")}
+                >
+                  Customer
+                </li>
+                <li
+                  className="login-option"
+                  onClick={() => navigate("/SellerLogin")}
+                >
+                  Seller
+                </li>
+                <li
+                  className="login-option"
+                  onClick={() => navigate("/DeliveryManLogin")}
+                >
+                  Delivery Man
+                </li>
               </ul>
-            </li>
+            </span>
           ) : (
             <li className="nav-item login-item">
-              Account
+              <span className="icon-profile"></span>👤Profile
               <ul className="login-dropdown">
-                <li className="login-option" onClick={handleLogout}>Logout</li>
+                <li className="login-option" onClick={handleLogout}>
+                  Logout
+                </li>
+                <li className="login-option" onClick={() => navigate("/CustomerProfile")}>
+                  Edit Profile
+                </li>
               </ul>
             </li>
           )}
-
-          <span className="nav-action-item" onClick={() => navigate("/CartItems")}>Cart</span>
-          <span className="nav-action-item" onClick={()=> navigate("/WishList")}>Wishlist</span>
-
-          <span
-              className="nav-action-item"
-              onClick={() => {
-                fetchNotifications();
-                setShowNotifications(!showNotifications);
-              }}
-            >
-              🔔 Notifications
-            </span>
-
         </div>
       </nav>
 
-       {isLoggedIn && showNotifications &&(
+      {/* Notifications Panel */}
+      {isLoggedIn && showNotifications && (
         <div className="notification-panel">
           <h3>Notifications</h3>
           {notifications.length === 0 ? (
@@ -221,64 +499,444 @@ const HomePage = () => {
         </div>
       )}
 
+      {/* Hero Section - only show when sidebar is NOT active */}
+      {!showSidebar && (
+        <section className="hero-section">
+          <div className="scrolling-container">
+            {scrollingImages.map((img, index) => (
+              <img
+                key={index}
+                src={img}
+                alt={`Slide ${index + 1}`}
+                className={`scrolling-image ${
+                  index === heroImageIndex ? "active" : ""
+                }`}
+              />
+            ))}
+          </div>
+          <div className="floating-text">
+            <h1 className="hero-title">Welcome to Digital Bazaar</h1>
+            <p className="hero-subtitle">
+              Your One-Stop Destination for Quality Products
+            </p>
+            <p className="hero-description">
+              Discover amazing deals, authentic products, and exceptional
+              service.
+            </p>
+          </div>
+        </section>
+      )}
 
+      {/* Main Layout Container */}
+      <div className="main-layout">
+        {/* Sidebar - only show when showSidebar is true */}
+        {showSidebar && (
+          <div className="permanent-sidebar">
+            <div className="filter-section">
+              <h4>Filter Products</h4>
+              {/* Discount Percentage Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("discountRange")}
+                >
+                  <h5>Discount Percentage</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.discountRange ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.discountRange && (
+                  <div className="discount-filter-content">
+                    <div className="discount-input-row">
+                      <div className="discount-field">
+                        <input
+                          type="number"
+                          placeholder="Maximum Discount (%)"
+                          value={discountRange.max === 0 ? "" : discountRange.max}
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              max: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                    </div>
+                    <div className="discount-slider">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={discountRange.max || 0}
+                        onChange={(e) =>
+                          setDiscountRange((prev) => ({
+                            ...prev,
+                            max: Number(e.target.value),
+                          }))
+                        }
+                        className="single-slider"
+                      />
+                    </div>
+                    {discountRange.max > 0 && (
+                      <div className="discount-range-text">
+                        0% - {discountRange.max}%
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
-      <section className="hero-section">
-        <div className="scrolling-container">
-          {scrollingImages.map((img, index) => (
-            <img
-              key={index}
-              src={img}
-              alt={`Slide ${index + 1}`}
-              className={`scrolling-image ${index === heroImageIndex ? "active" : ""}`}
-            />
-          ))}
-        </div>
-        <div className="floating-text">
-          <h1 className="hero-title">Welcome to Digital Bazaar</h1>
-          <p className="hero-subtitle">Your One-Stop Destination for Quality Products</p>
-          <p className="hero-description">Discover amazing deals, authentic products, and exceptional service.</p>
-        </div>
-      </section>
+              {/* Price Range Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("priceRange")}
+                >
+                  <h5>Price Range</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.priceRange ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.priceRange && (
+                  <div className="price-filter-content">
+                    <div className="price-input-row">
+                      <div className="price-field">
+                        <input
+                          type="number"
+                          placeholder="Maximum Price"
+                          value={priceRange.max === 0 ? "" : priceRange.max}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="price-slider">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100000"
+                        value={priceRange.max || 0}
+                        onChange={(e) =>
+                          setPriceRange((prev) => ({
+                            ...prev,
+                            max: Number(e.target.value),
+                          }))
+                        }
+                        className="single-slider"
+                      />
+                    </div>
+                    {priceRange.max > 0 && (
+                      <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
+                    )}
+                  </div>
+                )}
+              </div>
 
-      <ProductSection
-        title="Popular Products"
-        products={filterProducts().slice(0, 20)}
-        limit={popularLimit}
-        setLimit={setPopularLimit}
-      />
+              {/* Top Sellers Option (NEW) */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => {
+                    toggleSection("topSellers");
+                  }}
+                >
+                  <h5>Top Sellers</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.topSellers ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.topSellers && (
+                  <div className="top-sellers-list checkbox-group"> {/* Added checkbox-group class */}
+                    {isLoadingTopSellers && <p>Loading top sellers...</p>}
+                    {errorTopSellers && <p className="error-message">{errorTopSellers}</p>}
+                    {!isLoadingTopSellers && !errorTopSellers && topSellers.length > 0 ? (
+                      // Changed from ul to div with labels for checkboxes
+                      <div>
+                        {topSellers.map((seller) => (
+                          <label key={seller.id} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={selectedTopSellers.includes(seller.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedTopSellers((prev) => [...prev, seller.id]);
+                                } else {
+                                  setSelectedTopSellers((prev) =>
+                                    prev.filter((id) => id !== seller.id)
+                                  );
+                                }
+                              }}
+                            />
+                            {seller.name}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      !isLoadingTopSellers && !errorTopSellers && topSellers.length === 0 && <p>No top sellers available at the moment.</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
-      <ProductSection
-        title="Newest Arrivals"
-        products={filterProducts().slice().reverse()}
-        limit={newestLimit}
-        setLimit={setNewestLimit}
-      />
+              {/* Category Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("categories")}
+                >
+                  <h5>Categories</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.categories ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.categories && (
+                  <div className="checkbox-group">
+                    {[
+                      "Electronics",
+                      "Clothing",
+                      "Books",
+                      "Home & Kitchen",
+                      "Beauty",
+                      "Furniture",
+                      "Toys",
+                      "Sports",
+                      "Grocery",
+                    ].map((category) => (
+                      <label key={category} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.includes(category)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCategories((prev) => [
+                                ...prev,
+                                category,
+                              ]);
+                            } else {
+                              setSelectedCategories((prev) =>
+                                prev.filter((cat) => cat !== category)
+                              );
+                            }
+                          }}
+                        />
+                        {category}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-      <ProductSection
-        title="Recommended For You"
-        products={filterProducts()}
-        limit={recommendedLimit}
-        setLimit={setRecommendedLimit}
-      />
-
-      <section className="review-section">
-        <h2 className="section-title">Customer Reviews</h2>
-        <div className="reviews-container">
-          {[1, 2, 3, 4, 5, 6].slice(0, reviewLimit).map((_, index) => (
-            <div key={index} className="review-card">
-              <p className="review-text">"Review sample {index + 1}. Very satisfied!"</p>
-              <p className="review-author">— User {index + 1}</p>
+              {/* Stock Status Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("stockStatus")}
+                >
+                  <h5>Stock Status</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.stockStatus ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.stockStatus && (
+                  <div className="radio-group">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="all"
+                        checked={stockStatus === "all"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      All Items
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="inStock"
+                        checked={stockStatus === "inStock"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      In Stock
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="stockStatus"
+                        value="outOfStock"
+                        checked={stockStatus === "outOfStock"}
+                        onChange={(e) => setStockStatus(e.target.value)}
+                      />
+                      Out of Stock
+                    </label>
+                  </div>
+                )}
+              </div>
+              {/* Ratings Filter */}
+              <div className="filter-group">
+                <div
+                  className="filter-header"
+                  onClick={() => toggleSection("ratings")}
+                >
+                  <h5>Ratings</h5>
+                  <span
+                    className={`arrow ${
+                      expandedSections.ratings ? "expanded" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+                {expandedSections.ratings && (
+                  <div className="checkbox-group">
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <label key={rating} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedRatings.includes(rating)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRatings((prev) => [...prev, rating]);
+                            } else {
+                              setSelectedRatings((prev) =>
+                                prev.filter((r) => r !== rating)
+                              );
+                            }
+                          }}
+                        />
+                        {rating} Stars & Up
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Apply and Clear Filters Buttons */}
+              <button
+                className="apply-filters-btn"
+                onClick={applyFiltersToBackend}
+              >
+                Apply Filters
+              </button>
+              <button className="clear-filters-btn" onClick={clearFilters}>
+                Clear All Filters
+              </button>
             </div>
-          ))}
-        </div>
-        {reviewLimit < 6 ? (
-          <button className="show-more-btn" onClick={() => setReviewLimit(6)}>See More</button>
-        ) : (
-          <button className="show-more-btn" onClick={() => setReviewLimit(3)}>See Less</button>
+            <h3 className="sidebar-title">Menu</h3>
+            <ul className="sidebar-list">
+              <li
+                className="sidebar-item"
+                onClick={() => navigate("/customerProfile")}
+              >
+                Edit Profile
+              </li>
+              <li
+                className="sidebar-item"
+                onClick={() => navigate("/settings")}
+              >
+                Settings
+              </li>
+              <li className="sidebar-item logout" onClick={handleLogout}>
+                Logout
+              </li>
+            </ul>
+          </div>
         )}
-      </section>
 
+        {/* Main Content Area */}
+        <div className="main-content">
+          {showSidebar ? (
+            // Show only one product section when sidebar is open
+            <ProductSection
+              title="All Products"
+              products={filterProducts()}
+              limit={popularLimit}
+              setLimit={setPopularLimit}
+            />
+          ) : (
+            // Show all sections when sidebar is closed
+            <>
+              <ProductSection
+                title="Popular Products"
+                products={allProducts}
+                limit={popularLimit}
+                setLimit={setPopularLimit}
+              />
+
+              <ProductSection
+                title="Newest Arrivals"
+                products={filterProducts()}
+                limit={newestLimit}
+                setLimit={setNewestLimit}
+              />
+
+              <ProductSection
+                title="Recommended For You"
+                products={filterProducts()}
+                limit={recommendedLimit}
+                setLimit={setRecommendedLimit}
+              />
+
+              <section className="review-section">
+                <h2 className="section-title">Customer Reviews</h2>
+                <div className="reviews-container">
+                  {[1, 2, 3, 4, 5, 6].slice(0, reviewLimit).map((_, index) => (
+                    <div key={index} className="review-card">
+                      <p className="review-text">
+                        "Review sample {index + 1}. Very satisfied!"
+                      </p>
+                      <p className="review-author">— User {index + 1}</p>
+                    </div>
+                  ))}
+                </div>
+                {reviewLimit < 6 ? (
+                  <button
+                    className="show-more-btn"
+                    onClick={() => setReviewLimit(6)}
+                  >
+                    See More
+                  </button>
+                ) : (
+                  <button
+                    className="show-more-btn"
+                    onClick={() => setReviewLimit(3)}
+                  >
+                    See Less
+                  </button>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
       <footer className="site-footer">
         <div className="footer-links">
           <span className="footer-link">Privacy Policy</span>
@@ -287,7 +945,9 @@ const HomePage = () => {
           <span className="footer-link">support@digitalbazaar.com</span>
           <span className="footer-link">FAQs</span>
         </div>
-        <p className="footer-copy">&copy; 2025 Digital Bazaar. All rights reserved.</p>
+        <p className="footer-copy">
+          &copy; 2025 Digital Bazaar. All rights reserved.
+        </p>
       </footer>
     </div>
   );
