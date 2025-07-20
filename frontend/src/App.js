@@ -49,7 +49,7 @@ const App = () => {
           />
           <Route path="/deliveryManPage" element={<DeliveryManPage />} />
 
-          <Route path="/checkout/:storedTotal" element={<CheckoutPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/paymentPage" element={<PaymentSuccess />} />
           <Route path="/customerProfile" element={<CustomerProfile />} />
           <Route path="/deliveryman/profile" element={<DeliveryManProfile />} />

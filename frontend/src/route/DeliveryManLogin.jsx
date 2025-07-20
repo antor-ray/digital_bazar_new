@@ -35,7 +35,7 @@ const DeliveryManLogin = () => {
           localStorage.setItem('delivery_token', data.token);
         }
         console.log('Login Success:', data.deliveryMan);
-        navigate('/deliveryManPage');
+        navigate('/deliveryManPage', { replace: true });
       } else {
         setError(data.message || 'Login failed');
       }

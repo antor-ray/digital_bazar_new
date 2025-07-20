@@ -5,7 +5,7 @@ const DeliveryManRegistration = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
-    email:'',
+    email: '',
     phone_number: '',
     password: '',
     city: '',
@@ -52,7 +52,7 @@ const DeliveryManRegistration = () => {
     <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
       <h2 style={{ textAlign: 'center' }}>Delivery Man Registration</h2>
       <form onSubmit={handleSubmit}>
-        {['name','email', 'phone_number', 'password', 'city', 'region'].map((field) => (
+        {['name', 'email', 'phone_number', 'password'].map((field) => (
           <div key={field} style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px', textTransform: 'capitalize' }}>
               {field.replace('_', ' ')}:
@@ -67,6 +67,40 @@ const DeliveryManRegistration = () => {
             />
           </div>
         ))}
+
+        {/* Dropdown for City */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>City:</label>
+          <select
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          >
+            <option value="">Select City</option>
+            <option value="Dhaka">Dhaka</option>
+            <option value="Rangpur">Rangpur</option>
+          </select>
+        </div>
+
+        {/* Dropdown for Region */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Region:</label>
+          <select
+            name="region"
+            value={formData.region}
+            onChange={handleChange}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          >
+            <option value="">Select Region</option>
+            <option value="New Market">New Market</option>
+            <option value="Shahbag">Shahbag</option>
+            <option value="Mohammadpur">Mohammadpur</option>
+            <option value="Azimpur">Azimpur</option>
+          </select>
+        </div>
 
         <button type="submit" style={{
           width: '100%',

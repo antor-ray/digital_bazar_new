@@ -13,19 +13,19 @@ const CartProducts = () => {
     const fetchCartItems = async () => {
       try {
         const res = await axios.get("http://localhost:4000/cartItems", {
-          withCredentials: true, 
+          withCredentials: true,
         });
 
         const itemsWithQuantity = res.data.items.map(item => ({
           ...item,
-          quantity: 1,
+          quantity: 1, // default initial quantity
         }));
 
         setCartItems(itemsWithQuantity);
       } catch (error) {
         console.error("Error fetching cart items:", error);
         if (error.response?.status === 401) {
-          alert('please login first');
+          alert('Please login first');
         }
       }
     };
@@ -42,22 +42,31 @@ const CartProducts = () => {
     setGrandTotal(total);
   }, [cartItems]);
 
-  // Quantity change handler
+  // Quantity change handler (limit by stock)
   const handleQuantityChange = (productId, delta) => {
     setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.product_id === productId
-          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-          : item
-      )
+      prevItems.map(item => {
+        if (item.product_id === productId) {
+          const newQuantity = item.quantity + delta;
+
+          if (newQuantity < 1) return { ...item, quantity: 1 };
+          if (newQuantity > item.stock) {
+            alert(`Cannot add more than available stock (${item.stock})`);
+            return item; 
+          }
+
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      })
     );
   };
 
   // Delete cart item
   const handleDelete = async (productId) => {
     try {
-      await axios.delete("http://localhost:4000/api/v1/cart/delete", {
-        data: { product_id: productId }, // No need for customer_id if token is used
+      await axios.delete("http://localhost:4000/delete/cart/item", {
+        data: { product_id: productId },
         withCredentials: true,
         headers: {
           "Content-Type": "application/json"
@@ -68,6 +77,21 @@ const CartProducts = () => {
     } catch (err) {
       console.error("Failed to delete item:", err);
     }
+  };
+
+  // Handle checkout
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      alert("Cart is empty");
+      return;
+    }
+
+    navigate("/checkout", {
+      state: {
+        cartItems,
+        grandTotal
+      }
+    });
   };
 
   return (
@@ -95,7 +119,12 @@ const CartProducts = () => {
                   <td>
                     <button onClick={() => handleQuantityChange(item.product_id, -1)}>-</button>
                     <span className="qty">{item.quantity}</span>
-                    <button onClick={() => handleQuantityChange(item.product_id, 1)}>+</button>
+                    <button
+                      onClick={() => handleQuantityChange(item.product_id, 1)}
+                      disabled={item.quantity >= item.stock}
+                    >
+                      +
+                    </button>
                   </td>
                   <td>{item.selling_price * item.quantity}</td>
                   <td>
@@ -113,7 +142,7 @@ const CartProducts = () => {
 
           <div className="cart-summary">
             <h3>Grand Total: ৳{grandTotal}</h3>
-            <button className="checkout-btn" onClick={() => navigate(`/checkout/${grandTotal}`)}>
+            <button className="checkout-btn" onClick={handleCheckout}>
               Checkout
             </button>
           </div>

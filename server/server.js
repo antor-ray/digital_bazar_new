@@ -54,10 +54,10 @@ app.post("/login", async (req, res) => {
     }
     let tokenData = {
       customer_id: result.rows[0].customer_id,
-       role: 'customer',
+      role: 'customer',
     };
     // const newTokenData == append role here and pass it into jwt
-   // console.log(result.rows);
+    // console.log(result.rows);
     const secretkey = process.env.JWT_SECRET_KEY;
     const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
 
@@ -87,7 +87,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/isAuthenticate", isAuthenticated, async (req, res) => {
-  res.json({ message: "You are logged in", customer_id:req.user.customer_id});
+  res.json({ message: "You are logged in", customer_id: req.user.customer_id });
 });
 
 app.post("/register", async (req, res) => {
@@ -141,7 +141,7 @@ app.post("/register", async (req, res) => {
 
 app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const customerId = req.user.customer_id;
-  console.log(customerId);
+ // console.log(customerId);
   try {
     const results = await db.query(
       `SELECT email, customer_name, password, city, region, detail_address, phone_number
@@ -205,7 +205,7 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
 //   res.json({ notifications: result.rows });
 // });
 
-app.get( "/api/notifications",isAuthenticated,authorizeRoles("customer"),
+app.get("/api/notifications", isAuthenticated, authorizeRoles("customer"),
   async (req, res) => {
     try {
       const customer_id = req.user.customer_id;
@@ -497,32 +497,72 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
   }
 });
 
+//delete a item from cart
+app.delete("/delete/cart/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  try {
+    const customer_id = req.user.customer_id;
+    const { product_id } = req.body;
+
+    if (!product_id) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    const cartResult = await db.query(
+      "select cart_id from customer where customer_id=$1",
+      [customer_id]
+    );
+    if (cartResult.rows.length == 0) {
+      return res
+        .status(400)
+        .json({ message: "Cart not found for this customer" });
+    }
+    const cart_id = cartResult.rows[0].cart_id;
+
+
+    const result = await db.query(
+      "DELETE FROM cart_item WHERE cart_id = $1 AND product_id = $2 RETURNING *",
+      [cart_id, product_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Item not found in cart" });
+    }
+
+    res.json({ message: "Item deleted from cart successfully" });
+  } catch (err) {
+    console.error("Error deleting item from cart:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 
 //transfer products from cart to order_items
 
 app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const customerId = req.user.customer_id;
-  const { orderId } = req.body;
-  console.log(orderId);
+  const { orderId, cartItems } = req.body;
   try {
-    // Step 1: Get the cart_id for this customer
     const cartResult = await db.query(
       `SELECT cart_id FROM customer WHERE customer_id = $1`,
       [customerId]
     );
     const cart_id = cartResult.rows[0].cart_id;
-    console.log("cart");
-    // Step 2: Transfer items from cart_item to order_item
-    await db.query(
-      `INSERT INTO order_item (product_id, order_id)
-       SELECT product_id, $1
-       FROM cart_item
-       WHERE cart_id = $2`,
-      [orderId, cart_id]
-    );
 
-    console.log("next");
+    for (const item of cartItems) {
+      const { product_id, quantity, selling_price } = item;
+
+      await db.query(
+        "INSERT INTO order_item (order_id, product_id, quantity) VALUES ($1, $2, $3)",
+        [orderId, product_id, quantity]
+      );
+
+      await db.query(
+        "UPDATE sell SET stock = stock - $1 WHERE product_id = $2",
+        [quantity, product_id]
+      );
+
+    }
 
     await db.query(
       `DELETE FROM cart_item WHERE cart_id = $1`,
@@ -553,7 +593,7 @@ app.get("/api/v1/paymentMethods", async (req, res) => {
   }
 });
 
-app.post("/orderItems", async (req, res) => {});
+app.post("/orderItems", async (req, res) => { });
 
 app.get("/categoryProducts/:categoryName", async (req, res) => {
   const categoryName = req.params.categoryName;
@@ -707,7 +747,7 @@ app.post("/SellerLogin", async (req, res) => {
       .status(400)
       .json({ success: false, message: "Email and password are required." });
   }
-  
+
 
   try {
     const result = await db.query(
@@ -761,8 +801,8 @@ app.get("/isAuthenticatedSeller", isAuthenticatedSeller, async (req, res) => {
       message: "You are logged in",
       seller_id: sellerId,
       sellerName: seller.business_name,
-      
-      
+
+
     });
   } catch (err) {
     console.error("DB Error:", err);
@@ -774,11 +814,11 @@ app.get("/isAuthenticatedSeller", isAuthenticatedSeller, async (req, res) => {
 
 app.post("/SellerRegister", async (req, res) => {
 
-   const {
+  const {
     email,
     password,
     business_name,
-    about ="",
+    about = "",
     phone_number,
     address
   } = req.body;
@@ -829,7 +869,7 @@ app.post("/SellerRegister", async (req, res) => {
 
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null,path.join(__dirname,  "images")),
+  destination: (req, file, cb) => cb(null, path.join(__dirname, "images")),
   filename: (req, file, cb) => cb(null, `${Date.now()}_${file.originalname}`),
 });
 const upload = multer({ storage });
@@ -865,7 +905,7 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
     await db.query(`
       INSERT INTO sell(
       seller_id, product_id, sell_date, actual_price, discount, selling_price, stock) VALUES
-      ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`, [seller_id, product_id, price, discount, (price - price*(discount/100)), stock]
+      ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`, [seller_id, product_id, price, discount, (price - price * (discount / 100)), stock]
     );
     console.log("inserted in sell table successfully");
 
@@ -878,9 +918,9 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
         product_id,
         imageUrl,
       ]);
-    });     
+    });
     await Promise.all(imageInserts);
-    console.log("image is inserted: ",imageUrls);
+    console.log("image is inserted: ", imageUrls);
 
     // 5. Return the complete product object that matches frontend expectations
     const newProduct = {
@@ -897,10 +937,10 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
       tags: tags,
     };
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       product_id,
-      product: newProduct 
+      product: newProduct
     });
     console.log(newProduct);
   } catch (err) {
@@ -1049,7 +1089,7 @@ app.get("/SellerPage/products", isAuthenticatedSeller, async (req, res) => {
        ORDER BY p.product_id DESC;`, // Order by latest products first
       [seller_id]
     );
-    
+
     res.json({
       status: "success",
       products: results.rows,
@@ -1106,7 +1146,7 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticatedSeller, async (req, r
     });
 
     // 4. Delete sell and product entries
-    
+
     await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
     await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
     await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
@@ -1183,7 +1223,7 @@ app.put("/SellerEditPassword", isAuthenticatedSeller, async (req, res) => {
       "SELECT password FROM seller WHERE seller_id = $1",
       [seller_id]
     );
-    console.log(result);
+   // console.log(result);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Seller not found" });

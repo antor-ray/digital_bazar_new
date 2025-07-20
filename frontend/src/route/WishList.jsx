@@ -52,7 +52,7 @@ const WishlistPage = () => {
         <button onClick={() => navigate("/")}>🏠 Home</button>
         
         <button onClick={() => navigate("/CartItems")}>🛒 Cart</button>
-        <button onClick={() => navigate("/profile")}>👤 Profile</button>
+        <button onClick={() => navigate("/customerProfile")}>👤 Profile</button>
       </nav>
 
       <h1 className="wishlist-title">My Wishlist</h1>
