@@ -229,7 +229,7 @@ const clearFilters = () => {
   useEffect(() => {
     const checkAuthSeller = async () => {
       try {
-        const res = await fetch("http://localhost:4000/isAuthenticatedSeller", {
+        const res = await fetch("http://localhost:4000/getSellerInfo", {
           method: "GET",
           credentials: "include",
         });
@@ -241,7 +241,6 @@ const clearFilters = () => {
           fetchSellerProducts();
           setSellerName(data.sellerName);
           setSellerId(data.seller_id);
-          
         }
       } catch {
         setIsLoggedIn(false);

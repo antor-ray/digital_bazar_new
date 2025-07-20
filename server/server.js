@@ -14,8 +14,6 @@ const path = require("path");
 const db = require("./db");
 const { message } = require("statuses");
 const isAuthenticated = require("./middleware/isAuthenticated");
-const isAuthenticatedSeller = require("./middleware/isAuthenticatedSeller");
-
 //   
 app.use(
   cors({
@@ -27,7 +25,6 @@ app.use(
 app.use(express.json());
 
 const cookieParser = require("cookie-parser");
-const isAuthenticatedDeliveryMan = require("./middleware/isAuthenticatedDeliveryMan");
 const authorizeRoles = require("./middleware/authorizeRoles");
 const { rejects } = require("assert");
 const status = require("statuses");
@@ -89,12 +86,10 @@ app.post("/login", async (req, res) => {
 
     // User found, create token data
     const tokenData = {
-      id: user[userIdField], // Use the dynamically determined ID field
-      role: role,
-      email: user.email,
-      name: user.name || user.business_name // Use name or business_name
+      id: user[userIdField], 
+      role: role
     };
-    
+
     const secretkey = process.env.JWT_SECRET_KEY;
     const token = jwt.sign(tokenData, secretkey, { expiresIn: "1d" });
 
@@ -107,9 +102,9 @@ app.post("/login", async (req, res) => {
       })
       .status(200)
       .json({
-        user: user, // Return the authenticated user's data
         token: token,
-        role: role // Also send the role for frontend convenience
+        role: role ,
+        email: user.email, // Include email in the response
       });
 
   } catch (err) {
@@ -127,7 +122,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/isAuthenticate", isAuthenticated, async (req, res) => {
-  res.json({ message: "You are logged in", customer_id: req.user.customer_id });
+  res.json({ message: "You are logged in", customer_id: req.user.id });
 });
 
 app.post("/register", async (req, res) => {
@@ -180,7 +175,7 @@ app.post("/register", async (req, res) => {
 //customer profile
 
 app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.customer_id;
+  const customerId = req.user.id;
  // console.log(customerId);
   try {
     const results = await db.query(
@@ -201,7 +196,7 @@ app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), as
 });
 
 app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.customer_id;
+  const customerId = req.user.id;
   const {
     email,
     customer_name,
@@ -233,7 +228,7 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
 
 //customer notification
 // app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-//   const customer_id = req.user.customer_id;
+//   const customer_id = req.user.id;
 
 //   const result = await db.query(
 //     `SELECT * FROM notification
@@ -248,7 +243,7 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
 app.get("/api/notifications", isAuthenticated, authorizeRoles("customer"),
   async (req, res) => {
     try {
-      const customer_id = req.user.customer_id;
+      const customer_id = req.user.id;
 
       const result = await db.query(
         `SELECT * FROM notification
@@ -311,10 +306,6 @@ app.post("/deliveryman/logout", (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-app.get("/isAuthenticateDeliveryMan", isAuthenticatedDeliveryMan, async (req, res) => {
-  res.json({ message: "You are logged in", deliveryMan_id: req.deliveryMan_id });
-});
-
 app.post("/registerDeliveryMan", async (req, res) => {
   try {
     const {
@@ -364,8 +355,8 @@ app.post("/registerDeliveryMan", async (req, res) => {
 
 //delivery man profile
 
-app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
-  const deliveryManId = req.user.deliveryMan_id;
+app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('delivery_man'), async (req, res) => {
+  const deliveryManId = req.user.id;
   try {
     const results = await db.query(
       `SELECT email, name, password, city, region, phone_number
@@ -387,8 +378,8 @@ app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan
 
 //edit delivery man profile
 
-app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('deliveryMan'), async (req, res) => {
-  const deliveryManId = req.user.deliveryMan_id;
+app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('delivery_man'), async (req, res) => {
+  const deliveryManId = req.user.id;
   const {
     email,
     name,
@@ -483,7 +474,7 @@ app.get("/api/v1/products/:id", async (req, res) => {
 
 app.get("/cartItems", isAuthenticated, async (req, res) => {
   try {
-    const customer_id = req.user.customer_id;
+    const customer_id = req.user.id;
     console.log(customer_id);
     const cartResult = await db.query(
       "select cart_id from customer where customer_id=$1",
@@ -512,7 +503,7 @@ app.get("/cartItems", isAuthenticated, async (req, res) => {
 
 app.post("/add_to_cart", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.user.customer_id;
+  const customer_id = req.user.id;
   console.log(customer_id);
   try {
     const cartResult = await db.query(
@@ -540,7 +531,7 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
 //delete a item from cart
 app.delete("/delete/cart/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   try {
-    const customer_id = req.user.customer_id;
+    const customer_id = req.user.id;
     const { product_id } = req.body;
 
     if (!product_id) {
@@ -580,7 +571,7 @@ app.delete("/delete/cart/item", isAuthenticated, authorizeRoles('customer'), asy
 //transfer products from cart to order_items
 
 app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.customer_id;
+  const customerId =req.user.id;
   const { orderId, cartItems } = req.body;
   try {
     const cartResult = await db.query(
@@ -665,7 +656,7 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 app.post("/api/v1/products/:id/reviews", isAuthenticated, async (req, res) => {
   const productId = parseInt(req.params.id);
   const { rating, comment } = req.body;
-  const customerId = req.user.customer_id; // from middleware
+  const customerId = req.user.id; // from middleware
 
   if (!rating || !comment) {
     return res.status(400).json({ error: "Rating and comment are required" });
@@ -722,7 +713,7 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
 /// add to WishList-------------------------------------------------------------------
 app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
-  const customer_id = req.user.customer_id;
+  const customer_id = req.user.id;
   console.log(customer_id);
   try {
     const wishListResult = await db.query(
@@ -751,7 +742,7 @@ app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
 // wishlist items fetching-------------------------------
 
 app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
-  const customerId = req.user.customer_id;
+  const customerId = req.user.id;
   console.log(customerId);
 
   try {
@@ -828,21 +819,20 @@ app.post("/SellerLogin", async (req, res) => {
   }
 });
 
-app.get("/isAuthenticatedSeller", isAuthenticatedSeller, async (req, res) => {
-  const sellerId = req.seller_id;  // ✅ use const
+app.get("/getSellerInfo", isAuthenticated, async (req, res) => {
+  const sellerId = req.user.id; 
   try {
     const result = await db.query(
       `SELECT * FROM seller WHERE seller_id = $1`,
-      [sellerId]  // ✅ correct parameter format
+      [sellerId]  
     );
 
     const seller = result.rows[0];
+   
     res.json({
       message: "You are logged in",
       seller_id: sellerId,
       sellerName: seller.business_name,
-
-
     });
   } catch (err) {
     console.error("DB Error:", err);
@@ -915,7 +905,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Add Product with 4 images
-app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images", 4), async (req, res) => {
+app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), async (req, res) => {
   try {
     const {
       name, category, price, discount, stock,
@@ -947,8 +937,7 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
       [category_id, name, details, tags, short_des]
     );
     const product_id = productRes.rows[0].product_id;
-    const seller_id = req.seller_id;
-
+    const seller_id = req.user.id;
     // 3. Insert into sell
     await db.query(`
       INSERT INTO sell(
@@ -1000,7 +989,7 @@ app.post("/SellerPage/addProduct", isAuthenticatedSeller, upload.array("images",
 //////// update product details ____________________________________-
 app.put(
   "/SellerPage/updateProduct/:id",
-  isAuthenticatedSeller,
+  isAuthenticated,
   upload.array("images", 4),
   async (req, res) => {
     const product_id = req.params.id;
@@ -1107,9 +1096,9 @@ app.put(
 );
 
 // NEW ENDPOINT: Fetch products for the authenticated seller
-app.get("/SellerPage/products", isAuthenticatedSeller, async (req, res) => {
+app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
   try {
-    const seller_id = req.seller_id; // Get seller_id from the isAuthenticatedSeller middleware
+    const seller_id = req.user.id; 
 
     if (!seller_id) {
       return res.status(401).json({ status: "error", message: "Seller not authenticated." });
@@ -1151,9 +1140,9 @@ app.get("/SellerPage/products", isAuthenticatedSeller, async (req, res) => {
 
 
 // DELETE /SellerPage/deleteProduct/:id
-app.delete("/SellerPage/deleteProduct/:id", isAuthenticatedSeller, async (req, res) => {
+app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) => {
   const productId = req.params.id;
-  const seller_id = req.seller_id;
+  const seller_id = req.user.id;
 
   if (!seller_id) {
     return res.status(401).json({ success: false, message: "Unauthorized seller." });
@@ -1214,9 +1203,9 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticatedSeller, async (req, r
 
 // seller info fetching
 
-app.get("/SellerProfile", isAuthenticatedSeller, async (req, res) => {
+app.get("/SellerProfile", isAuthenticated, async (req, res) => {
   try {
-    const seller_id = req.seller_id;
+    const seller_id = req.user.id;
     const result = await db.query(
       "SELECT email, business_name, about, phone_number, address FROM seller WHERE seller_id = $1",
       [seller_id]
@@ -1236,10 +1225,9 @@ app.get("/SellerProfile", isAuthenticatedSeller, async (req, res) => {
 
 
 ///seller profile update _-------------------
-app.put('/SellerEditProfile', isAuthenticatedSeller, async (req, res) => {
+app.put('/SellerEditProfile', isAuthenticated, async (req, res) => {
   const { email, business_name, about, phone_number, address } = req.body;
-  const sellerId = req.seller_id;
-
+  const sellerId = req.user.id;
   // Check for any missing fields
   if (!email || !business_name || !about || !phone_number || !address) {
     return res.status(400).json({ success: false, message: "All fields are required." });
@@ -1262,9 +1250,9 @@ app.put('/SellerEditProfile', isAuthenticatedSeller, async (req, res) => {
 
 // seller password edit
 
-app.put("/SellerEditPassword", isAuthenticatedSeller, async (req, res) => {
+app.put("/SellerEditPassword", isAuthenticated, async (req, res) => {
   try {
-    const seller_id = req.seller_id;
+    const seller_id = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
     // Get current password from DB
@@ -1304,7 +1292,7 @@ app.put("/SellerEditPassword", isAuthenticatedSeller, async (req, res) => {
 
 app.post("/api/orders", isAuthenticated, async (req, res) => {
   const { address, grandTotal, paymentMethod } = req.body;
-  const customerId = req.user.customer_id;
+  const customerId = req.user.id;
 
   try {
     await db.query("BEGIN"); // Start transaction
@@ -1384,7 +1372,7 @@ app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
 
 //Deliveryman Backend Routes
 app.get("/proposal", isAuthenticated, async (req, res) => {
-  const deliveryManId = req.user.deliveryMan_id;
+  const deliveryManId = req.user.id;
 
   try {
     const result = await db.query(
@@ -1406,7 +1394,7 @@ app.get("/proposal", isAuthenticated, async (req, res) => {
 
 app.post("/respond", isAuthenticated, async (req, res) => {
   const { orderId, response } = req.body;
-  const deliveryManId = req.user.deliveryMan_id;
+  const deliveryManId = req.user.id;
 
   try {
 
@@ -2120,9 +2108,9 @@ app.get("/api/v1/sellerSellingHistory", async (req, res) => {
 app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
   try {
     // Assuming sellerId is passed as a query parameter from the frontend
-    // For production, consider getting sellerId from authenticated session (e.g., req.user.sellerId)
+    // For production, consider getting sellerId from authenticated session (e.g., req.user.id)
     const { sellerId: dummyId } = req.query;
-    const sellerId = parseInt(dummyId,10); // Use dummyId for testing or req.seller_id for authenticated requests
+    const sellerId = parseInt(dummyId,10); // Use dummyId for testing or req.user.id; for authenticated requests
     if (!sellerId) {
       return res.status(400).json({
         status: "error",

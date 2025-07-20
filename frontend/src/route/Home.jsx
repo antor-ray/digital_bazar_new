@@ -52,6 +52,8 @@ const HomePage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
+  const user_email=localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
+
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState({
     priceRange: false,
@@ -439,38 +441,18 @@ const HomePage = () => {
             🔔 Notifications
           </span>
           {!isLoggedIn ? (
-            <span className="nav-item login-item" >
+            <span className="nav-item login-item" onClick={() => navigate("/Login")}>
               Login
-              <ul className="login-dropdown">
-                <li
-                  className="login-option"
-                  onClick={() => navigate("/CustomerLogin")}
-                >
-                  Customer
-                </li>
-                <li
-                  className="login-option"
-                  onClick={() => navigate("/SellerLogin")}
-                >
-                  Seller
-                </li>
-                <li
-                  className="login-option"
-                  onClick={() => navigate("/DeliveryManLogin")}
-                >
-                  Delivery Man
-                </li>
-              </ul>
             </span>
           ) : (
             <li className="nav-item login-item">
-              <span className="icon-profile"></span>👤Profile
+              <span className="icon-profile"></span>👤{user_email}
               <ul className="login-dropdown">
                 <li className="login-option" onClick={handleLogout}>
                   Logout
                 </li>
                 <li className="login-option" onClick={() => navigate("/CustomerProfile")}>
-                  Edit Profile
+                  Profile
                 </li>
               </ul>
             </li>
