@@ -4,7 +4,11 @@ import { useNavigate } from "react-router-dom";
 import axios, { all } from "axios";
 import "../css/homepage.css";
 import icon from "../images/Icon.png";
-import CustomerProfile from "./CustomerProfile"; // Assuming this component exists
+import Slider from "rc-slider";
+import "rc-slider/assets/index.css";
+const { Range } = Slider;
+
+
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -34,7 +38,7 @@ const HomePage = () => {
   const [categoryFilter, setCategoryFilter] = useState("");
 
   // Filter states
-  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedRatings, setSelectedRatings] = useState([]);
   const [stockStatus, setStockStatus] = useState("all");
@@ -52,7 +56,7 @@ const HomePage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  const user_email=localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
+  const user_email = localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
 
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState({
@@ -117,6 +121,9 @@ const HomePage = () => {
       const queryParams = new URLSearchParams();
 
       // Add price range if set
+      if (priceRange.min) {
+        queryParams.append("minPrice", priceRange.min);
+      }
       if (priceRange.max) {
         queryParams.append("maxPrice", priceRange.max);
       }
@@ -142,6 +149,9 @@ const HomePage = () => {
       }
 
       // Add discount range if set
+      if (discountRange.min > 0) {
+        queryParams.append("minDiscount", discountRange.min);
+      }
       if (discountRange.max > 0) {
         queryParams.append("maxDiscount", discountRange.max);
       }
@@ -208,7 +218,7 @@ const HomePage = () => {
   }, []);
 
   const clearFilters = () => {
-    setPriceRange({ min: "", max: "" });
+    setPriceRange({ min: 0, max: 0 });
     setSelectedCategories([]);
     setSelectedRatings([]);
     setStockStatus("all");
@@ -329,13 +339,13 @@ const HomePage = () => {
           <div className="pagination-buttons">
             <button
               onClick={() => {
-               
-                  setCurrentPage((p) => p - 1);
-                
+
+                setCurrentPage((p) => p - 1);
+
               }}
               disabled={
-                currentPage ===1
-                
+                currentPage === 1
+
               }
 
             >
@@ -490,9 +500,8 @@ const HomePage = () => {
                 key={index}
                 src={img}
                 alt={`Slide ${index + 1}`}
-                className={`scrolling-image ${
-                  index === heroImageIndex ? "active" : ""
-                }`}
+                className={`scrolling-image ${index === heroImageIndex ? "active" : ""
+                  }`}
               />
             ))}
           </div>
@@ -524,9 +533,8 @@ const HomePage = () => {
                 >
                   <h5>Discount Percentage</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.discountRange ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.discountRange ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>
@@ -537,7 +545,20 @@ const HomePage = () => {
                       <div className="discount-field">
                         <input
                           type="number"
-                          placeholder="Maximum Discount (%)"
+                          placeholder="Min Discount (%)"
+                          value={discountRange.min === 0 ? "" : discountRange.min}
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              min: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                          max="100"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max Discount (%)"
                           value={discountRange.max === 0 ? "" : discountRange.max}
                           onChange={(e) =>
                             setDiscountRange((prev) => ({
@@ -550,28 +571,31 @@ const HomePage = () => {
                         />
                       </div>
                     </div>
+
                     <div className="discount-slider">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={discountRange.max || 0}
-                        onChange={(e) =>
-                          setDiscountRange((prev) => ({
-                            ...prev,
-                            max: Number(e.target.value),
-                          }))
-                        }
-                        className="single-slider"
+                      <Slider.Range
+                        min={0}
+                        max={100}
+                        value={[discountRange.min, discountRange.max]}
+                        onChange={(value) => {
+                          if (Array.isArray(value)) {
+                            const [min, max] = value;
+                            setDiscountRange({ min, max });
+                          }
+                        }}
+
                       />
                     </div>
-                    {discountRange.max > 0 && (
+
+                    {(discountRange.max > 0 || discountRange.min > 0) && (
                       <div className="discount-range-text">
-                        0% - {discountRange.max}%
+                        {discountRange.min}% - {discountRange.max}%
                       </div>
                     )}
                   </div>
                 )}
+
+
               </div>
 
               {/* Price Range Filter */}
@@ -582,9 +606,8 @@ const HomePage = () => {
                 >
                   <h5>Price Range</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.priceRange ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.priceRange ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>
@@ -595,7 +618,19 @@ const HomePage = () => {
                       <div className="price-field">
                         <input
                           type="number"
-                          placeholder="Maximum Price"
+                          placeholder="Min Price"
+                          value={priceRange.min === 0 ? "" : priceRange.min}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              min: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max Price"
                           value={priceRange.max === 0 ? "" : priceRange.max}
                           onChange={(e) =>
                             setPriceRange((prev) => ({
@@ -607,26 +642,29 @@ const HomePage = () => {
                         />
                       </div>
                     </div>
+
                     <div className="price-slider">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100000"
-                        value={priceRange.max || 0}
-                        onChange={(e) =>
-                          setPriceRange((prev) => ({
-                            ...prev,
-                            max: Number(e.target.value),
-                          }))
-                        }
-                        className="single-slider"
+                      <Range
+                        min={0}
+                        max={100}
+                        value={[discountRange.min, discountRange.max]}
+                        onChange={(value) => {
+                          if (Array.isArray(value)) {
+                            const [min, max] = value;
+                            setDiscountRange({ min, max });
+                          }
+                        }}
                       />
                     </div>
-                    {priceRange.max > 0 && (
-                      <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
+
+                    {(priceRange.max > 0 || priceRange.min > 0) && (
+                      <div className="price-range-text">
+                        ৳{priceRange.min} - ৳{priceRange.max}
+                      </div>
                     )}
                   </div>
                 )}
+
               </div>
 
               {/* Top Sellers Option (NEW) */}
@@ -639,9 +677,8 @@ const HomePage = () => {
                 >
                   <h5>Top Sellers</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.topSellers ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.topSellers ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>
@@ -687,9 +724,8 @@ const HomePage = () => {
                 >
                   <h5>Categories</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.categories ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.categories ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>
@@ -739,9 +775,8 @@ const HomePage = () => {
                 >
                   <h5>Stock Status</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.stockStatus ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.stockStatus ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>
@@ -789,9 +824,8 @@ const HomePage = () => {
                 >
                   <h5>Ratings</h5>
                   <span
-                    className={`arrow ${
-                      expandedSections.ratings ? "expanded" : ""
-                    }`}
+                    className={`arrow ${expandedSections.ratings ? "expanded" : ""
+                      }`}
                   >
                     ▼
                   </span>

@@ -19,13 +19,12 @@ import {
 import "../css/SellerPage.css"; // Or a new CSS file like SellerSellingHistory.css
 
 const SellerSellingHistoryPage = () => {
-  //const { sellerId } = useParams(); // Get sellerId from the URL parameter
   const navigate = useNavigate();
 
   const [sellingHistory, setSellingHistory] = useState([]);
   const [sellingHistorySortType, setSellingHistorySortType] =
     useState("highest_quantity"); // Default sort
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [historyType,setHistoryType] =useState("PRESENT");
   const [sellerName, setSellerName] = useState("");
   const [sellerId, setSellerId] = useState("");
   // const [selectedMonth, setSelectedMonth] = useState(""); // Format: 'YYYY-MM'
@@ -40,26 +39,12 @@ const SellerSellingHistoryPage = () => {
 
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
 
-  // Function to fetch selling history
   const fetchSellingHistory = async () => {
-    if (!sellerId) {
-      console.error(
-        "Seller ID not found in URL, cannot fetch selling history."
-      );
-      // Optionally navigate back or show an error message
-      // navigate('/seller-dashboard');
-      return;
-    }
     try {
       const queryParams = new URLSearchParams();
       queryParams.append("month", selectedMonth);
-      queryParams.append("sellerId", sellerId); // Use sellerId from useParams
-      queryParams.append("sortBy", sellingHistorySortType); // Pass sort type for selling history
-
-      console.log(
-        "Fetching Selling History with URL:",
-        `http://localhost:4000/api/v1/sellerSellingHistory?${queryParams.toString()}`
-      );
+      queryParams.append("sortBy", sellingHistorySortType); 
+      queryParams.append("status",historyType);
 
       const response = await axios.get(
         `http://localhost:4000/api/v1/sellerSellingHistory?${queryParams.toString()}`,
@@ -77,40 +62,14 @@ const SellerSellingHistoryPage = () => {
           "Failed to fetch selling history:",
           response.data.message
         );
-        // Optionally show a user-friendly error message
       }
     } catch (error) {
       console.error("Error fetching selling history:", error);
       if (error.response?.data?.message) {
         console.error("Server error message:", error.response.data.message);
       }
-      // Optionally show a user-friendly error message
     }
   };
-
-  useEffect(() => {
-    const checkAuthSeller = async () => {
-      try {
-        const res = await fetch("http://localhost:4000/isAuthenticatedSeller", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          setIsLoggedIn(true);
-          fetchSellingHistory();
-          setSellerName(data.sellerName);
-          setSellerId(data.seller_id);
-        }
-      } catch {
-        setIsLoggedIn(false);
-      }
-    };
-    checkAuthSeller();
-    console.log(isLoggedIn);
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -119,7 +78,6 @@ const SellerSellingHistoryPage = () => {
         {},
         { withCredentials: true }
       );
-      setIsLoggedIn(false);
       navigate("/");
     } catch (err) {
       console.error("Logout failed", err);
@@ -143,11 +101,8 @@ const SellerSellingHistoryPage = () => {
       if (response.data.success) {
         alert("Product deleted successfully!");
 
-        // Option 1: Refresh product list from server
-        fetchSellingHistory(); // Re-fetch selling history to update UI
+        fetchSellingHistory(); 
 
-        // Option 2 (optional): Or update state without reload
-        // setProducts((prev) => prev.filter((product) => product.id !== id));
       } else {
         alert("Failed to delete product.");
       }
@@ -157,10 +112,9 @@ const SellerSellingHistoryPage = () => {
     }
   };
 
-  // useEffect to trigger fetch when sellerId or sort type changes
   useEffect(() => {
     fetchSellingHistory();
-  }, [sellerId, sellingHistorySortType]); // Re-fetch when sellerId or sort type changes
+  }, [sellingHistorySortType,historyType]);
 
   return (
     <div className="dashboardContainer">
@@ -275,6 +229,22 @@ const SellerSellingHistoryPage = () => {
               >
                 Apply
               </button>
+
+                <button
+                onClick={() => setHistoryType("PRESENT")}
+                className="btn btnPrimary"
+                style={{ padding: "6px 12px" }}
+                >
+                  CURRENT ITEM
+                </button>
+
+              <button
+                onClick={() => setHistoryType("DELETED")}
+                className="btn btnPrimary"
+                style={{ padding: "6px 12px" }}
+                >
+                  DELETED ITEM
+                </button>
             </div>
 
             <p
@@ -298,7 +268,6 @@ const SellerSellingHistoryPage = () => {
                         <th style={tableStyles.th}>Product Name</th>
                         <th style={tableStyles.th}>Category</th>
                         <th style={tableStyles.th}>Total Sold</th>
-                        <th style={tableStyles.th}>Sell Date</th>
                         <th style={tableStyles.th}>Actions</th>
                       </tr>
                     </thead>
@@ -326,9 +295,6 @@ const SellerSellingHistoryPage = () => {
                           </td>
                           <td style={tableStyles.td}>
                             {item.total_quantity_sold}
-                          </td>
-                          <td style={tableStyles.td}>
-                            {new Date(item.sell_date).toLocaleDateString()}
                           </td>
                           <td style={tableStyles.td}>
                             <button

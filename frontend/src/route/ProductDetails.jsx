@@ -14,6 +14,7 @@ const ProductDetails = () => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [showReviewForm, setShowReviewForm] = useState(false);
 
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -47,10 +48,11 @@ const ProductDetails = () => {
     }
   };
 
+  const customerId = localStorage.getItem("userId") || null;
   const fetchReviews = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:4000/api/v1/products/${id}/reviews`,
+        `http://localhost:4000/api/v1/products/${id}/reviews?customerId=${customerId}`,
         {
           withCredentials: true,
         }
@@ -156,7 +158,7 @@ const ProductDetails = () => {
         <div className="product-images-section">
           <div className="main-image-container">
             <img
-               src={`http://localhost:4000/images/${productImages[selectedImage]}`}
+              src={`http://localhost:4000/images/${productImages[selectedImage]}`}
               alt={product.product_name}
               className="details-img"
             />
@@ -167,9 +169,8 @@ const ProductDetails = () => {
                 key={index}
                 src={`http://localhost:4000/images/${image}`}
                 alt={`${product.product_name} ${index + 1}`}
-                className={`thumbnail ${
-                  selectedImage === index ? "active" : ""
-                }`}
+                className={`thumbnail ${selectedImage === index ? "active" : ""
+                  }`}
                 onClick={() => setSelectedImage(index)}
               />
             ))}
@@ -201,9 +202,8 @@ const ProductDetails = () => {
             <div className="info-item">
               <span className="info-label">Stock:</span>
               <span
-                className={`stock-status ${
-                  product.stock > 0 ? "in-stock" : "out-stock"
-                }`}
+                className={`stock-status ${product.stock > 0 ? "in-stock" : "out-stock"
+                  }`}
               >
                 {product.stock > 0
                   ? `${product.stock} available`
@@ -222,19 +222,19 @@ const ProductDetails = () => {
             </div>
 
             <div className="info-item">
-            <span className="info-label">Seller:</span>
-            <span className="seller-info">
-              {product.seller_name || "Unknown Seller"}
-            </span>
-            
-            <span className="info-label"> Phone No:</span>
-            <span className="seller-info">
-              {product.phone_number || "Unknown Seller"}
-            </span>
-          </div>
+              <span className="info-label">Seller:</span>
+              <span className="seller-info">
+                {product.seller_name || "Unknown Seller"}
+              </span>
+
+              <span className="info-label"> Phone No:</span>
+              <span className="seller-info">
+                {product.phone_number || "Unknown Seller"}
+              </span>
+            </div>
 
           </div>
-          
+
           {/* <div className="seller-info">
             <div className="info-item">
                 <span>Seller Name:</span>
@@ -291,9 +291,8 @@ const ProductDetails = () => {
                   <button
                     key={star}
                     type="button"
-                    className={`star-btn ${
-                      star <= newReview.rating ? "active" : ""
-                    }`}
+                    className={`star-btn ${star <= newReview.rating ? "active" : ""
+                      }`}
                     onClick={() => setNewReview({ ...newReview, rating: star })}
                   >
                     ★
@@ -357,25 +356,32 @@ const ProductDetails = () => {
       <div className="similar-products-section">
         <h2 className="section-title">Similar Products</h2>
         <div className="products-row">
-          {similarProducts.map((similarProduct) => (
-            <div
-              key={similarProduct.id}
-              className="product-card"
-              onClick={() => navigate(`/product/${similarProduct.id}`)}
-            >
-              <img
-                src={`/${similarProduct.image_url}`}
-                alt={similarProduct.product_name}
-                className="product-img"
-              />
-              <h3 className="product-name">{similarProduct.product_name}</h3>
-              <div className="product-price">
-                <span className="product-actual-price">
-                  ৳{similarProduct.selling_price}
-                </span>
-                <s>৳{similarProduct.actual_price}</s>
+          {similarProducts.map((product) => (
+           <div
+              key={product.product_id}
+                className="product-card"
+                onClick={() => navigate(`/product/${product.product_id}`)}
+              >
+                <img
+                  src={
+                    product.image_url
+                      ? `http://localhost:4000/images/${product.image_url}`
+                      : "https://via.placeholder.com/250?text=No+Image"
+                  }
+                  alt={product.product_name}
+                  className="product-img"
+                />
+                <p className="product-name">{product.product_name}</p>
+                <p className="product-price">
+                  Price: <s>৳{product.actual_price}</s>
+                </p>
+                <p className="product-discount">
+                  Discount: {product.discount}%
+                </p>
+                <p className="product-actual-price">
+                  Selling Price: ৳{product.selling_price}
+                </p>
               </div>
-            </div>
           ))}
         </div>
       </div>

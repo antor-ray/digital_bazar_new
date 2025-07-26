@@ -30,11 +30,12 @@ const Login = () => {
             localStorage.setItem('token_seller', data.token_seller);
 
             if (response.ok) {
-                const { token, role, user ,email} = data;
+                const { token, role, user ,email,id} = data;
 
                 localStorage.setItem('token', token);       // optional: store token
                 localStorage.setItem('role', role);         // ✅ save role in localStorage
-                localStorage.setItem('email', email);       // optional: store email    
+                localStorage.setItem('email', email);       // optional: store email   
+                localStorage.setItem('userId', id);    // optional: store user ID 
 
                 setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
 

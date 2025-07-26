@@ -86,7 +86,7 @@ app.post("/login", async (req, res) => {
 
     // User found, create token data
     const tokenData = {
-      id: user[userIdField], 
+      id: user[userIdField],
       role: role
     };
 
@@ -96,15 +96,15 @@ app.post("/login", async (req, res) => {
     return res
       .cookie("token", token, {
         httpOnly: true,
-        sameSite: "lax", // Consider 'strict' or 'none' with secure:true for production
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        // secure: process.env.NODE_ENV === 'production', // Use secure in production with HTTPS
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
       })
       .status(200)
       .json({
         token: token,
-        role: role ,
-        email: user.email, // Include email in the response
+        role: role,
+        email: user.email,
+        id: user[userIdField], // Use the specific ID field
       });
 
   } catch (err) {
@@ -176,7 +176,7 @@ app.post("/register", async (req, res) => {
 
 app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const customerId = req.user.id;
- // console.log(customerId);
+  // console.log(customerId);
   try {
     const results = await db.query(
       `SELECT email, customer_name, password, city, region, detail_address, phone_number
@@ -269,7 +269,6 @@ app.post("/DeliveryManlogin", async (req, res) => {
       "SELECT * FROM delivery_man WHERE email = $1 AND password = $2",
       [email, password]
     );
-    // console.log(result.rows[0]);
     if (result.rows.length <= 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -424,7 +423,8 @@ JOIN (
         product_id, image_url
     FROM image
     ORDER BY product_id ASC, image_id
-) i ON p.product_id = i.product_id;`);
+) i ON p.product_id = i.product_id
+ WHERE STATUS = 'PRESENT';`);
     res.json({
       status: "success",
       products: results.rows,
@@ -438,7 +438,6 @@ JOIN (
 
 app.get("/api/v1/products/:id", async (req, res) => {
   const { id } = req.params;
-
   try {
     // Fetch product + seller info
     const productResult = await db.query(
@@ -475,7 +474,6 @@ app.get("/api/v1/products/:id", async (req, res) => {
 app.get("/cartItems", isAuthenticated, async (req, res) => {
   try {
     const customer_id = req.user.id;
-    console.log(customer_id);
     const cartResult = await db.query(
       "select cart_id from customer where customer_id=$1",
       [customer_id]
@@ -504,7 +502,7 @@ app.get("/cartItems", isAuthenticated, async (req, res) => {
 app.post("/add_to_cart", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
   const customer_id = req.user.id;
-  console.log(customer_id);
+  // console.log(customer_id);
   try {
     const cartResult = await db.query(
       "select cart_id from customer where customer_id=$1",
@@ -571,7 +569,7 @@ app.delete("/delete/cart/item", isAuthenticated, authorizeRoles('customer'), asy
 //transfer products from cart to order_items
 
 app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId =req.user.id;
+  const customerId = req.user.id;
   const { orderId, cartItems } = req.body;
   try {
     const cartResult = await db.query(
@@ -617,7 +615,7 @@ app.get("/api/v1/paymentMethods", async (req, res) => {
       status: "success",
       methods: results.rows,
     });
-    console.log(results);
+    //console.log(results);
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: "error", message: "Server error" });
@@ -653,17 +651,17 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 
 // for reviews ---------------------------------------------------------------------
 
-app.post("/api/v1/products/:id/reviews", isAuthenticated, async (req, res) => {
+app.post("/api/v1/products/:id/reviews", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const productId = parseInt(req.params.id);
   const { rating, comment } = req.body;
-  const customerId = req.user.id; // from middleware
+  const customerId = req.user.id;
 
   if (!rating || !comment) {
     return res.status(400).json({ error: "Rating and comment are required" });
   }
 
   try {
-    // Check if the customer already reviewed this product
+    //Check if the customer already reviewed this product
     const existingReview = await db.query(
       `SELECT * FROM review WHERE product_id = $1 AND customer_id = $2`,
       [productId, customerId]
@@ -691,7 +689,7 @@ app.post("/api/v1/products/:id/reviews", isAuthenticated, async (req, res) => {
 
 app.get("/api/v1/products/:id/reviews", async (req, res) => {
   const productId = parseInt(req.params.id);
-
+  const customerId = parseInt(req.query.customerId);
   try {
     const result = await db.query(
       `SELECT r.review_id, r.customer_id, r.product_id, r.description, r.date, r.rating,
@@ -699,10 +697,11 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
        FROM review r
        JOIN customer c ON r.customer_id = c.customer_id
        WHERE r.product_id = $1
-       ORDER BY r.date DESC`,
-      [productId]
+       ORDER BY 
+         CASE WHEN r.customer_id = $2 THEN 0 ELSE 1 END,
+         r.date DESC`,
+      [productId, customerId || -1]
     );
-    //console.log(result.rows);
     res.status(200).json({ reviews: result.rows });
   } catch (err) {
     console.error("Error fetching reviews:", err);
@@ -714,7 +713,7 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
 app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
   const { product_id } = req.body;
   const customer_id = req.user.id;
-  console.log(customer_id);
+  // console.log(customer_id);
   try {
     const wishListResult = await db.query(
       "select wishlist_id from customer where customer_id=$1",
@@ -731,7 +730,7 @@ app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
       "insert into wish_item(product_id, wishlist_id) values($1,$2)",
       [product_id, wishlist_id]
     );
-    console.log(product_id);
+    //console.log(product_id);
     res.status(200).json({ message: "Added to wishList" });
   } catch (err) {
     console.error("Error adding to wishlist:", err);
@@ -743,7 +742,7 @@ app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
 
 app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
   const customerId = req.user.id;
-  console.log(customerId);
+  //console.log(customerId);
 
   try {
     const result = await db.query(
@@ -759,13 +758,50 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
       [customerId]
     );
 
-    console.log(result.rows);
+    // console.log(result.rows);
     res.status(200).json({ items: result.rows });
   } catch (err) {
     console.error("Error fetching wishlist:", err);
     res.status(500).json({ message: "Failed to fetch wishlist" });
   }
 });
+
+//similar products------------------------------------------------
+app.get("/api/v1/products/similar/:id", async (req, res) => {
+  const productId = parseInt(req.params.id);
+  let tags = req.query.tags;
+
+  if (!tags) {
+    return res.status(400).json({ error: "Tags are required for similarity check." });
+  }
+
+  // Convert tags from query string to array
+  if (typeof tags === "string") {
+    tags = tags.split(",").map((tag) => tag.trim());
+  }
+
+  try {
+    // Create placeholders like: tags ILIKE '%' || $2 || '%' OR tags ILIKE '%' || $3 || '%'
+    const tagConditions = tags
+      .map((_, idx) => `tags ILIKE '%' || $${idx + 2} || '%'`)
+      .join(" OR ");
+
+    const query = `
+      SELECT * FROM product
+      WHERE product_id != $1 AND (${tagConditions})
+    `;
+
+    const values = [productId, ...tags];
+
+    const result = await db.query(query, values);
+
+    res.status(200).json({ products: result.rows });
+  } catch (err) {
+    console.error("Error fetching similar products:", err);
+    res.status(500).json({ error: "Failed to fetch similar products." });
+  }
+});
+
 
 ///seller login----------------------------------------------------
 
@@ -797,7 +833,7 @@ app.post("/SellerLogin", async (req, res) => {
       seller_id: result.rows[0].seller_id,
     };
     // const newTokenData == append role here and pass it into jwt
-    console.log(result.rows);
+    //console.log(result.rows);
 
     const secretkey_seller = process.env.JWT_SECRET_KEY_seller;
     const token_seller = jwt.sign(tokenData_seller, secretkey_seller, { expiresIn: "1d" });
@@ -820,15 +856,15 @@ app.post("/SellerLogin", async (req, res) => {
 });
 
 app.get("/getSellerInfo", isAuthenticated, async (req, res) => {
-  const sellerId = req.user.id; 
+  const sellerId = req.user.id;
   try {
     const result = await db.query(
       `SELECT * FROM seller WHERE seller_id = $1`,
-      [sellerId]  
+      [sellerId]
     );
 
     const seller = result.rows[0];
-   
+
     res.json({
       message: "You are logged in",
       seller_id: sellerId,
@@ -917,7 +953,7 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
       [name]);
     if (productName.rows.length > 0) {
       return res.status(400).json({ success: false, message: "Product already exists" });
-    } 
+    }
 
 
     // 1. Get category_id from name
@@ -938,13 +974,14 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
     );
     const product_id = productRes.rows[0].product_id;
     const seller_id = req.user.id;
+    //console.log("Product inserted with ID:", product_id);
     // 3. Insert into sell
     await db.query(`
       INSERT INTO sell(
       seller_id, product_id, sell_date, actual_price, discount, selling_price, stock) VALUES
       ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`, [seller_id, product_id, price, discount, (price - price * (discount / 100)), stock]
     );
-    console.log("inserted in sell table successfully");
+    //console.log("inserted in sell table successfully");
 
     // 4. Insert images (4 max)
     const imageUrls = [];
@@ -957,7 +994,7 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
       ]);
     });
     await Promise.all(imageInserts);
-    console.log("image is inserted: ", imageUrls);
+    // console.log("image is inserted: ", imageUrls);
 
     // 5. Return the complete product object that matches frontend expectations
     const newProduct = {
@@ -979,7 +1016,7 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
       product_id,
       product: newProduct
     });
-    console.log(newProduct);
+    //console.log(newProduct);
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Server error" });
@@ -1098,7 +1135,7 @@ app.put(
 // NEW ENDPOINT: Fetch products for the authenticated seller
 app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
   try {
-    const seller_id = req.user.id; 
+    const seller_id = req.user.id;
 
     if (!seller_id) {
       return res.status(401).json({ status: "error", message: "Seller not authenticated." });
@@ -1122,7 +1159,7 @@ app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
           FROM product p
        JOIN sell s ON p.product_id = s.product_id
        JOIN category c ON p.category_id = c.category_id
-       WHERE s.seller_id = $1
+       WHERE s.seller_id = $1 AND STATUS = 'PRESENT'
        ORDER BY p.product_id DESC;`, // Order by latest products first
       [seller_id]
     );
@@ -1152,8 +1189,13 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) =>
     await db.query("BEGIN");
 
     // Check if product exists and belongs to seller
+    // const checkProduct = await db.query(
+    //   "SELECT * FROM sell WHERE product_id = $1 AND seller_id = $2",
+    //   [productId, seller_id]
+    // );
+
     const checkProduct = await db.query(
-      "SELECT * FROM sell WHERE product_id = $1 AND seller_id = $2",
+      "UPDATE SELL SET STATUS = 'DELETED' WHERE product_id = $1 AND seller_id = $2 RETURNING *",
       [productId, seller_id]
     );
 
@@ -1163,34 +1205,34 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) =>
     }
 
     // 1. Get image filenames from the DB
-    const imageResult = await db.query(
-      "SELECT image_url FROM image WHERE product_id = $1",
-      [productId]
-    );
+    // const imageResult = await db.query(
+    //   "SELECT image_url FROM image WHERE product_id = $1",
+    //   [productId]
+    // );
 
-    const imagePaths = imageResult.rows.map(row =>
-      path.join(__dirname, "images", row.image_url)
-    );
+    // const imagePaths = imageResult.rows.map(row =>
+    //   path.join(__dirname, "images", row.image_url)
+    // );
 
-    // 2. Delete image records from DB
-    await db.query("DELETE FROM image WHERE product_id = $1", [productId]);
+    // // 2. Delete image records from DB
+    // await db.query("DELETE FROM image WHERE product_id = $1", [productId]);
 
-    // 3. Delete files from disk
-    imagePaths.forEach((imgPath) => {
-      fs.unlink(imgPath, (err) => {
-        if (err) console.warn("Failed to delete image file:", imgPath, err.message);
-      });
-    });
+    // // 3. Delete files from disk
+    // imagePaths.forEach((imgPath) => {
+    //   fs.unlink(imgPath, (err) => {
+    //     if (err) console.warn("Failed to delete image file:", imgPath, err.message);
+    //   });
+    // });
 
     // 4. Delete sell and product entries
 
-    await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
-    await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
+    // await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
+    // await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
 
-    await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
-    await db.query("DELETE FROM sell WHERE product_id = $1 AND seller_id = $2", [productId, seller_id]);
-    await db.query("DELETE FROM product WHERE product_id = $1", [productId]);
-    await db.query("DELETE FROM review WHERE product_id = $1", [productId]);
+    // await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
+    // await db.query("DELETE FROM sell WHERE product_id = $1 AND seller_id = $2", [productId, seller_id]);
+    // await db.query("DELETE FROM product WHERE product_id = $1", [productId]);
+    // await db.query("DELETE FROM review WHERE product_id = $1", [productId]);
     await db.query("COMMIT");
 
     res.json({ success: true, message: "Product and images deleted successfully." });
@@ -1216,7 +1258,7 @@ app.get("/SellerProfile", isAuthenticated, async (req, res) => {
     }
 
     res.json({ seller: result.rows[0] });
-    console.log(result.rows[0]);
+    // console.log(result.rows[0]);
   } catch (err) {
     console.error("Error fetching seller profile:", err);
     res.status(500).json({ message: "Server error" });
@@ -1260,7 +1302,7 @@ app.put("/SellerEditPassword", isAuthenticated, async (req, res) => {
       "SELECT password FROM seller WHERE seller_id = $1",
       [seller_id]
     );
-   // console.log(result);
+    // console.log(result);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Seller not found" });
@@ -1376,15 +1418,16 @@ app.get("/proposal", isAuthenticated, async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT p.order_id, o.address, o.total_cost, p.status
+      `SELECT p.order_id, o.address, o.total_cost, p.status,c.customer_name, c.phone_number
        FROM delivery_proposal p
        JOIN customer_order o ON p.order_id = o.order_id
+       JOIN customer c ON o.customer_id = c.customer_id
        WHERE p.delivery_man_id = $1
        ORDER BY p.proposal_time DESC`,
       [deliveryManId]
     );
 
-    console.log(result.rows);
+    // console.log(result.rows);
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching proposal:", err);
@@ -1429,11 +1472,22 @@ app.post("/respond", isAuthenticated, async (req, res) => {
         [orderId]
       );
 
+      const deliveryManResult = await db.query(
+        `SELECT * FROM delivery_man WHERE id = $1`,
+        [deliveryManId]
+      );
+
+      const deliveryManName = deliveryManResult.rows[0].name;
+      const deliveryManPhone = deliveryManResult.rows[0].phone_number;
+
+      const message = `Your order has been booked by a deliveryman named ${deliveryManName} (phone: ${deliveryManPhone})`;
+
       await db.query(
         `INSERT INTO notification (message, created_at, user_id, user_type, order_id)
-         VALUES ('Your order has been booked by a deliveryman.', CURRENT_TIMESTAMP, $1, 'CUSTOMER', $2)`,
-        [customer.rows[0].customer_id, orderId]
+   VALUES ($1, CURRENT_TIMESTAMP, $2, 'CUSTOMER', $3)`,
+        [message, customer.rows[0].customer_id, orderId]
       );
+
     }
 
     await db.query("COMMIT");
@@ -1494,7 +1548,7 @@ app.post("/ssl-request", async (req, res) => {
       ship_country: 'Bangladesh',
     };
 
-    console.log("Sending to SSLCommerz:", data);
+    //console.log("Sending to SSLCommerz:", data);
 
     const sslcz = new SSLCommerzPayment(process.env.STORED_ID, process.env.STORED_PASSWORD, false);
 
@@ -1502,7 +1556,7 @@ app.post("/ssl-request", async (req, res) => {
       const GatewayPageURL = apiResponse.GatewayPageURL;
 
       if (GatewayPageURL) {
-        console.log("Redirecting to:", GatewayPageURL);
+        //console.log("Redirecting to:", GatewayPageURL);
         return res.status(200).json({ GatewayPageURL });
       } else {
         console.error("No Gateway URL in response");
@@ -1622,7 +1676,7 @@ app.get("/api/top-sellers", async (req, res) => {
 
     // If no unique sellers found from the sales data, return an empty list.
     if (uniqueSellerIds.size === 0) {
-        return res.json({ success: true, topSellers: [] });
+      return res.json({ success: true, topSellers: [] });
     }
 
     const sellersQueryResult = await db.query(
@@ -1664,11 +1718,13 @@ app.get("/api/top-sellers", async (req, res) => {
 app.get("/api/v1/productFilter", async (req, res) => {
   try {
     const {
+      minPrice,
       maxPrice,
       categories,
       stockStatus,
       ratings,
       search,
+      minDiscount, // Destructure minDiscount
       maxDiscount, // Destructure maxDiscount
       sellerIds,   // Destructure sellerIds
       // We will now ignore sortBy and sortDirection if maxDiscount is present
@@ -1767,6 +1823,20 @@ app.get("/api/v1/productFilter", async (req, res) => {
       }
     }
 
+    if (minPrice && !isNaN(minPrice)) {
+      query += ` AND s.selling_price >= $${paramCount}`;
+      queryParams.push(Number(minPrice));
+      paramCount++;
+    }
+
+
+    // ✅ Add minDiscount filter
+    if (minDiscount && !isNaN(minDiscount)) {
+      query += ` AND s.discount >= $${paramCount}`;
+      queryParams.push(Number(minDiscount));
+      paramCount++;
+    }
+
     // Add maxDiscount filter
     if (maxDiscount && !isNaN(maxDiscount)) {
       query += ` AND s.discount <= $${paramCount}`;
@@ -1806,7 +1876,7 @@ app.get("/api/v1/productFilter", async (req, res) => {
     query += orderByClause;
 
     //console.log('Query:', query); // For debugging
-    console.log('Params:', queryParams); // For debugging
+    // console.log('Params:', queryParams); // For debugging
 
     const results = await db.query(query, queryParams);
 
@@ -1947,7 +2017,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
           paramCount++;
           return condition;
         });
-        
+
         query += ` AND (${ratingConditions.join(' OR ')})`;
       }
     }
@@ -1958,11 +2028,11 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       queryParams.push(Number(maxDiscount));
 
       paramCount++;
-      
+
     }
 
     // Sorting logic
-    
+
 
     // switch (sortBy) {
     //   case 'highest_selling':
@@ -1985,8 +2055,8 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
 
     query += orderByClause;
 
-    console.log('Final Query:', query);
-    console.log('Final Params:', queryParams);
+    //console.log('Final Query:', query);
+    //console.log('Final Params:', queryParams);
 
     const results = await db.query(query, queryParams);
 
@@ -2024,11 +2094,10 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
   }
 });
 
-
-// Add this new endpoint to your server.js file
-app.get("/api/v1/sellerSellingHistory", async (req, res) => {
+app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'), async (req, res) => {
   try {
-    const { sellerId, sortBy, month } = req.query;
+    const { sortBy, month ,status} = req.query;
+    const sellerId = req.user.id;
 
     if (!sellerId) {
       return res.status(400).json({
@@ -2037,37 +2106,34 @@ app.get("/api/v1/sellerSellingHistory", async (req, res) => {
       });
     }
 
-    // Prepare base query and parameters
     let query = `
-      SELECT
+      SELECT 
         p.product_id,
         p.product_name,
         c.category_name,
-        s.sell_date,
-        COALESCE(COUNT(p.product_id), 0) as total_quantity_sold
-      FROM product p
-      JOIN sell s ON p.product_id = s.product_id
+        SUM(oi.quantity) AS total_quantity_sold
+      FROM sell s
+      JOIN order_item oi ON s.product_id = oi.product_id
+      JOIN product p ON p.product_id = s.product_id
       JOIN category c ON p.category_id = c.category_id
-      LEFT JOIN order_item oi ON p.product_id = oi.product_id
-      LEFT JOIN "payment" o ON oi.order_id = o.order_id
-      WHERE s.seller_id = $1 AND o.status = 'successful'
+      JOIN customer_order o ON o.order_id = oi.order_id
+      join payment pay ON pay.order_id = o.order_id
+      WHERE s.seller_id = $1 AND s.status = $2
     `;
 
-    const queryParams = [sellerId];
-    let paramIndex = 2;
+    const queryParams = [sellerId,status];
+    let paramIndex = 3;
 
-    // Filter by month if provided
     if (month) {
-      query += ` AND TO_CHAR(o.payment_date, 'YYYY-MM') = $${paramIndex}`;
+      query += ` AND TO_CHAR(pay.payment_date, 'YYYY-MM') = $${paramIndex}`;
       queryParams.push(month);
       paramIndex++;
     }
 
     query += `
-      GROUP BY p.product_id, p.product_name, c.category_name, s.sell_date
+      GROUP BY p.product_id, p.product_name, c.category_name
     `;
 
-    // Sorting
     switch (sortBy) {
       case "highest_quantity":
         query += ` ORDER BY total_quantity_sold DESC`;
@@ -2085,11 +2151,11 @@ app.get("/api/v1/sellerSellingHistory", async (req, res) => {
     res.json({
       status: "success",
       count: results.rows.length,
-      totalOrders: results.rows.reduce((sum, row) => sum + parseInt(row.total_quantity_sold), 0), // Add total orders
+      totalOrders: results.rows.reduce((sum, row) => sum + parseInt(row.total_quantity_sold), 0),
       sellingHistory: results.rows,
     });
 
-    console.log(`Fetched ${results.rows.length} selling history records for month ${month || "ALL"}.`);
+    // console.log(`Fetched ${results.rows.length} selling history records for month ${month || "ALL"}.`);
 
   } catch (err) {
     console.error("Error fetching seller selling history:", err);
@@ -2110,7 +2176,7 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
     // Assuming sellerId is passed as a query parameter from the frontend
     // For production, consider getting sellerId from authenticated session (e.g., req.user.id)
     const { sellerId: dummyId } = req.query;
-    const sellerId = parseInt(dummyId,10); // Use dummyId for testing or req.user.id; for authenticated requests
+    const sellerId = parseInt(dummyId, 10); // Use dummyId for testing or req.user.id; for authenticated requests
     if (!sellerId) {
       return res.status(400).json({
         status: "error",
@@ -2144,8 +2210,8 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
 
     const queryParams = [sellerId, firstDayOfMonth, lastDayOfMonth];
 
-    console.log('Executing orders this month query:', query);
-    console.log('With parameters:', queryParams);
+    //console.log('Executing orders this month query:', query);
+    // console.log('With parameters:', queryParams);
 
     const result = await db.query(query, queryParams);
 
@@ -2157,7 +2223,7 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
       ordersThisMonth: parseInt(ordersThisMonth, 10), // Ensure it's an integer
     });
 
-    console.log(`Fetched ${ordersThisMonth} orders this month for seller ${sellerId}.`);
+    // console.log(`Fetched ${ordersThisMonth} orders this month for seller ${sellerId}.`);
 
   } catch (err) {
     console.error('Error fetching orders this month:', err);

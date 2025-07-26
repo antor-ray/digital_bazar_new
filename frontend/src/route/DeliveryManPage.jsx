@@ -105,6 +105,8 @@ const DeliveryManPage = () => {
           <thead>
             <tr>
               <th>Order ID</th>
+              <th>Customer Name</th>
+              <th>Phone Number</th>
               <th>Address</th>
               <th>Total Cost</th>
               <th>Status</th>
@@ -122,6 +124,8 @@ const DeliveryManPage = () => {
               proposals.map((p) => (
                 <tr key={p.order_id}>
                   <td>{p.order_id}</td>
+                  <td>{p.customer_name}</td>
+                  <td>{p.phone_number}</td>
                   <td>{p.address}</td>
                   <td>৳{p.total_cost}</td>
                   <td>{p.status}</td>
