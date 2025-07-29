@@ -787,8 +787,9 @@ app.get("/api/v1/products/similar/:id", async (req, res) => {
       .join(" OR ");
 
     const query = `
-      SELECT * FROM product
-      WHERE product_id != $1 AND (${tagConditions})
+      SELECT * FROM product p join sell s on p.product_id=s.product_id
+      join image i on p.product_id=i.product_id
+      WHERE p.product_id != $1 AND (${tagConditions})
     `;
 
     const values = [productId, ...tags];
@@ -948,74 +949,157 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
       details, short_des, tags
     } = req.body;
 
+    const seller_id = req.user.id;
+
     const productName = await db.query(
       "SELECT * FROM product WHERE product_name = $1",
       [name]);
+
+
+
     if (productName.rows.length > 0) {
-      return res.status(400).json({ success: false, message: "Product already exists" });
+      const existingProductId = productName.rows[0].product_id;
+
+      const productStatus = await db.query(
+        "select * from sell where product_id = $1 and seller_id = $2",
+        [existingProductId, seller_id]
+      );
+
+      if (productStatus.rows[0].status === 'PRESENT') {
+        return res.status(404).json({ success: false, message: "Product already exists" });
+      }
+      else if (productStatus.rows[0].status === 'DELETED') {
+        // Restore the product
+        await db.query(`UPDATE product SET product_details = $1, tags = $2, short_des = $3 WHERE product_id = $4`,
+          [details, tags, short_des, existingProductId]);
+
+        // Update the category (if changed)
+        const categoryRes = await db.query(
+          "SELECT category_id FROM category WHERE category_name = $1",
+          [category]
+        );
+        if (categoryRes.rowCount === 0) return res.json({ success: false, message: "Invalid category" });
+
+        const category_id = categoryRes.rows[0].category_id;
+        await db.query("UPDATE product SET category_id = $1 WHERE product_id = $2", [category_id, existingProductId]);
+
+        // Reinsert into sell table
+        await db.query(`
+  UPDATE sell
+  SET 
+    sell_date = CURRENT_DATE,
+    actual_price = $3,
+    discount = $4,
+    selling_price = $5,
+    stock = $6,
+    status = 'PRESENT'
+  WHERE seller_id = $1 AND product_id = $2`,
+          [seller_id, existingProductId, price, discount, (price - price * (discount / 100)), stock]
+        );
+
+
+        // Re-insert images
+        const imageUrls = [];
+        await db.query("DELETE FROM image WHERE product_id = $1", [existingProductId]); // Remove old images if needed
+
+        const imageInserts = req.files.map(file => {
+          const imageUrl = `${file.filename}`;
+          imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
+          return db.query("INSERT INTO image (product_id, image_url) VALUES ($1, $2)", [
+            existingProductId,
+            imageUrl,
+          ]);
+        });
+        await Promise.all(imageInserts);
+
+        // Respond with updated product
+        const restoredProduct = {
+          id: existingProductId,
+          name: name,
+          category: category,
+          price: parseFloat(price),
+          discount: parseFloat(discount),
+          stock: parseInt(stock),
+          status: parseInt(stock) > 0 ? 'Active' : 'Out of Stock',
+          images: imageUrls,
+          details: details,
+          short_des: short_des,
+          tags: tags,
+        };
+
+        return res.json({
+          success: true,
+          restored: true,
+          product_id: existingProductId,
+          product: restoredProduct
+        });
+
+      }
     }
+    else {
+      // 1. Get category_id from name
+      const categoryRes = await db.query(
+        "SELECT category_id FROM category WHERE category_name = $1",
+        [category]
+      );
+      if (categoryRes.rowCount === 0) return res.json({ success: false, message: "Invalid category" });
 
+      const category_id = categoryRes.rows[0].category_id;
 
-    // 1. Get category_id from name
-    const categoryRes = await db.query(
-      "SELECT category_id FROM category WHERE category_name = $1",
-      [category]
-    );
-    if (categoryRes.rowCount === 0) return res.json({ success: false, message: "Invalid category" });
-
-    const category_id = categoryRes.rows[0].category_id;
-
-    // 2. Insert product
-    const productRes = await db.query(
-      `INSERT INTO product (
+      // 2. Insert product
+      const productRes = await db.query(
+        `INSERT INTO product (
          category_id, product_name, product_details, tags, short_des
        ) VALUES ($1, $2, $3, $4, $5) RETURNING product_id`,
-      [category_id, name, details, tags, short_des]
-    );
-    const product_id = productRes.rows[0].product_id;
-    const seller_id = req.user.id;
-    //console.log("Product inserted with ID:", product_id);
-    // 3. Insert into sell
-    await db.query(`
+        [category_id, name, details, tags, short_des]
+      );
+      const product_id = productRes.rows[0].product_id;
+      const seller_id = req.user.id;
+      //console.log("Product inserted with ID:", product_id);
+      // 3. Insert into sell
+      await db.query(`
       INSERT INTO sell(
       seller_id, product_id, sell_date, actual_price, discount, selling_price, stock) VALUES
       ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`, [seller_id, product_id, price, discount, (price - price * (discount / 100)), stock]
-    );
-    //console.log("inserted in sell table successfully");
+      );
+      //console.log("inserted in sell table successfully");
 
-    // 4. Insert images (4 max)
-    const imageUrls = [];
-    const imageInserts = req.files.map(file => {
-      const imageUrl = `${file.filename}`;
-      imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
-      return db.query("INSERT INTO image (product_id, image_url) VALUES ($1, $2)", [
+      // 4. Insert images (4 max)
+      const imageUrls = [];
+      const imageInserts = req.files.map(file => {
+        const imageUrl = `${file.filename}`;
+        imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
+        return db.query("INSERT INTO image (product_id, image_url) VALUES ($1, $2)", [
+          product_id,
+          imageUrl,
+        ]);
+      });
+      await Promise.all(imageInserts);
+      // console.log("image is inserted: ", imageUrls);
+
+      // 5. Return the complete product object that matches frontend expectations
+      const newProduct = {
+        id: product_id,
+        name: name,
+        category: category,
+        price: parseFloat(price),
+        discount: parseFloat(discount),
+        stock: parseInt(stock),
+        status: parseInt(stock) > 0 ? 'Active' : 'Out of Stock',
+        images: imageUrls,
+        details: details,
+        short_des: short_des,
+        tags: tags,
+      };
+
+      res.json({
+        success: true,
         product_id,
-        imageUrl,
-      ]);
-    });
-    await Promise.all(imageInserts);
-    // console.log("image is inserted: ", imageUrls);
+        product: newProduct
+      });
+    }
 
-    // 5. Return the complete product object that matches frontend expectations
-    const newProduct = {
-      id: product_id,
-      name: name,
-      category: category,
-      price: parseFloat(price),
-      discount: parseFloat(discount),
-      stock: parseInt(stock),
-      status: parseInt(stock) > 0 ? 'Active' : 'Out of Stock',
-      images: imageUrls,
-      details: details,
-      short_des: short_des,
-      tags: tags,
-    };
 
-    res.json({
-      success: true,
-      product_id,
-      product: newProduct
-    });
     //console.log(newProduct);
   } catch (err) {
     console.error(err);
@@ -1243,6 +1327,36 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) =>
   }
 });
 
+//to restore the product
+app.post("/SellerPage/restoreProduct/:id", isAuthenticated, async (req, res) => {
+  const productId = req.params.id;
+  const seller_id = req.user.id;
+  try {
+    const result = await db.query(
+      `UPDATE sell SET status = 'PRESENT' WHERE product_id = $1 AND seller_id = $2 RETURNING *`,
+      [productId, seller_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Product restored successfully",
+    });
+  } catch (error) {
+    console.error("Error restoring product:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
 // seller info fetching
 
 app.get("/SellerProfile", isAuthenticated, async (req, res) => {
@@ -1261,6 +1375,32 @@ app.get("/SellerProfile", isAuthenticated, async (req, res) => {
     // console.log(result.rows[0]);
   } catch (err) {
     console.error("Error fetching seller profile:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/seller/ratings", async (req, res) => {
+  const sellerId = req.query.sellerId;
+  console.log(sellerId);
+  try {
+    const result = await db.query(
+      `SELECT AVG(rating) AS average_rating
+       FROM review r
+       JOIN product p ON r.product_id = p.product_id
+       JOIN sell s ON p.product_id = s.product_id
+       WHERE s.seller_id = $1`,
+      [sellerId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No reviews found for this seller" });
+    }
+
+    res.json({
+      average_rating: parseFloat(result.rows[0].average_rating).toFixed(2),
+    });
+  } catch (err) {
+    console.error("Error fetching seller ratings:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -1418,10 +1558,11 @@ app.get("/proposal", isAuthenticated, async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT p.order_id, o.address, o.total_cost, p.status,c.customer_name, c.phone_number
+      `SELECT p.order_id, o.address, o.total_cost, p.status,pay.status as payment_status,c.customer_name, c.phone_number
        FROM delivery_proposal p
        JOIN customer_order o ON p.order_id = o.order_id
        JOIN customer c ON o.customer_id = c.customer_id
+       join payment pay on o.order_id = pay.order_id
        WHERE p.delivery_man_id = $1
        ORDER BY p.proposal_time DESC`,
       [deliveryManId]
@@ -1499,6 +1640,36 @@ app.post("/respond", isAuthenticated, async (req, res) => {
   }
 });
 
+app.post('/mark-delivered', async (req, res) => {
+  const { orderId } = req.body;
+
+  if (!orderId) {
+    return res.status(400).json({ message: "Order ID is required." });
+  }
+
+  try {
+    // Update payment status
+    await db.query(
+      'UPDATE payment SET status = $1 WHERE order_id = $2',
+      ['SUCCESSFUL', orderId]
+    );
+
+    // Update customer_order status
+    await db.query(
+      'UPDATE customer_order SET status = $1 WHERE order_id = $2',
+      ['SUCCESSFUL', orderId]
+    );
+
+     await db.query(
+      'UPDATE delivery_proposal SET status = $1 WHERE order_id = $2',
+      ['SUCCESSFUL', orderId]
+    );
+    res.status(200).json({ message: 'Order marked as delivered successfully.' });
+  } catch (err) {
+    console.error('Error marking as delivered:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
 
 
 //payment method
@@ -2096,7 +2267,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
 
 app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'), async (req, res) => {
   try {
-    const { sortBy, month ,status} = req.query;
+    const { sortBy, month, status } = req.query;
     const sellerId = req.user.id;
 
     if (!sellerId) {
@@ -2121,7 +2292,7 @@ app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'
       WHERE s.seller_id = $1 AND s.status = $2
     `;
 
-    const queryParams = [sellerId,status];
+    const queryParams = [sellerId, status];
     let paramIndex = 3;
 
     if (month) {

@@ -27,6 +27,7 @@ const ProductDetails = () => {
         setProduct(res.data.product);
         fetchSimilarProducts(res.data.product.tags);
         fetchReviews();
+        window.scrollTo(0, 0); // Scroll to top on product load
       } catch (err) {
         console.error("Error fetching product:", err);
       }
@@ -43,6 +44,7 @@ const ProductDetails = () => {
         }
       );
       setSimilarProducts(res.data.products || []);
+      console.log("Similar Products:", res.data.products);
     } catch (err) {
       console.error("Error fetching similar products:", err);
     }

@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 const DeliveryManPage = () => {
   const navigate = useNavigate();
   const [proposals, setProposals] = useState([]);
+  const [deliveredOrders, setDeliveredOrders] = useState([]);
+
 
   const email = localStorage.getItem('email');
 
@@ -67,6 +69,21 @@ const DeliveryManPage = () => {
     }
   };
 
+  const markAsDelivered = async (orderId) => {
+    try {
+      await axios.post(
+        "http://localhost:4000/mark-delivered",
+        { orderId },
+        { withCredentials: true }
+      );
+      setDeliveredOrders((prev) => [...prev, orderId]);
+      fetchProposals();
+    } catch (err) {
+      console.error("Failed to mark as delivered:", err);
+    }
+  };
+
+
   const handleLogout = async () => {
     try {
       await axios.post("http://localhost:4000/deliveryman/logout", {}, {
@@ -110,6 +127,7 @@ const DeliveryManPage = () => {
               <th>Address</th>
               <th>Total Cost</th>
               <th>Status</th>
+              <th>Payment</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -129,6 +147,7 @@ const DeliveryManPage = () => {
                   <td>{p.address}</td>
                   <td>৳{p.total_cost}</td>
                   <td>{p.status}</td>
+                  <td>{p.payment_status}</td>
                   <td>
                     {p.status === "PENDING" ? (
                       <div className="action-buttons">
@@ -145,10 +164,22 @@ const DeliveryManPage = () => {
                           Cancel
                         </button>
                       </div>
+                    ) : p.status === "ACCEPTED" ? (
+                      <button
+                        className="delivered-btn"
+                        onClick={() => markAsDelivered(p.order_id)}
+                      >
+                        isDelivered
+                      </button>
+                    ) : p.status === "SUCCESSFUL" ? (
+                      <span className="done-text">done</span>
                     ) : (
                       <span className="no-action">No actions</span>
                     )}
                   </td>
+
+
+
                 </tr>
               ))
             )}

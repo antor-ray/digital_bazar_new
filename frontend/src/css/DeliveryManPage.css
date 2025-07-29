@@ -109,3 +109,21 @@
 .profile-dropdown li:hover {
   background-color: #f2f2f2;
 }
+
+.delivered-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.delivered-btn:hover {
+  background-color: #45a049;
+}
+
+.done-text {
+  color: green;
+  font-weight: bold;
+}

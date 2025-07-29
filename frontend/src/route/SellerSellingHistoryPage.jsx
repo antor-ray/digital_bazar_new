@@ -24,7 +24,7 @@ const SellerSellingHistoryPage = () => {
   const [sellingHistory, setSellingHistory] = useState([]);
   const [sellingHistorySortType, setSellingHistorySortType] =
     useState("highest_quantity"); // Default sort
-  const [historyType,setHistoryType] =useState("PRESENT");
+  const [historyType, setHistoryType] = useState("PRESENT");
   const [sellerName, setSellerName] = useState("");
   const [sellerId, setSellerId] = useState("");
   // const [selectedMonth, setSelectedMonth] = useState(""); // Format: 'YYYY-MM'
@@ -43,8 +43,8 @@ const SellerSellingHistoryPage = () => {
     try {
       const queryParams = new URLSearchParams();
       queryParams.append("month", selectedMonth);
-      queryParams.append("sortBy", sellingHistorySortType); 
-      queryParams.append("status",historyType);
+      queryParams.append("sortBy", sellingHistorySortType);
+      queryParams.append("status", historyType);
 
       const response = await axios.get(
         `http://localhost:4000/api/v1/sellerSellingHistory?${queryParams.toString()}`,
@@ -101,7 +101,7 @@ const SellerSellingHistoryPage = () => {
       if (response.data.success) {
         alert("Product deleted successfully!");
 
-        fetchSellingHistory(); 
+        fetchSellingHistory();
 
       } else {
         alert("Failed to delete product.");
@@ -112,9 +112,36 @@ const SellerSellingHistoryPage = () => {
     }
   };
 
+  const handleRestoreProduct = async (id) => {
+    const confirmRestore = window.confirm(
+      "Are you sure you want to restore this product?"
+    );
+    if (!confirmRestore) return;
+
+    try {
+      const response = await axios.post(
+        `http://localhost:4000/SellerPage/restoreProduct/${id}`,
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+      if (response.data.success) {
+        alert("Product restored successfully!");
+        fetchSellingHistory(); // Refresh the selling history after restoring
+      } else {
+        alert("Failed to restore product.");
+      }
+    } catch (error) {
+      console.error("Error restoring product:", error);
+      alert("An error occurred. Try again.");
+    }
+  };
+
+
   useEffect(() => {
     fetchSellingHistory();
-  }, [sellingHistorySortType,historyType]);
+  }, [sellingHistorySortType, historyType]);
 
   return (
     <div className="dashboardContainer">
@@ -178,22 +205,20 @@ const SellerSellingHistoryPage = () => {
               {" "}
               {/* Re-using filterActions for consistent button styling */}
               <button
-                className={`btn ${
-                  sellingHistorySortType === "highest_quantity"
+                className={`btn ${sellingHistorySortType === "highest_quantity"
                     ? "btnPrimary"
                     : "btnSecondary"
-                }`}
+                  }`}
                 onClick={() => setSellingHistorySortType("highest_quantity")}
               >
                 <ArrowUpWideNarrow className="btnIcon" />
                 Highest Quantity
               </button>
               <button
-                className={`btn ${
-                  sellingHistorySortType === "lowest_quantity"
+                className={`btn ${sellingHistorySortType === "lowest_quantity"
                     ? "btnPrimary"
                     : "btnSecondary"
-                }`}
+                  }`}
                 onClick={() => setSellingHistorySortType("lowest_quantity")}
               >
                 <ArrowDownWideNarrow className="btnIcon" />
@@ -230,21 +255,21 @@ const SellerSellingHistoryPage = () => {
                 Apply
               </button>
 
-                <button
+              <button
                 onClick={() => setHistoryType("PRESENT")}
                 className="btn btnPrimary"
                 style={{ padding: "6px 12px" }}
-                >
-                  CURRENT ITEM
-                </button>
+              >
+                CURRENT ITEM
+              </button>
 
               <button
                 onClick={() => setHistoryType("DELETED")}
                 className="btn btnPrimary"
                 style={{ padding: "6px 12px" }}
-                >
-                  DELETED ITEM
-                </button>
+              >
+                DELETED ITEM
+              </button>
             </div>
 
             <p
@@ -277,14 +302,14 @@ const SellerSellingHistoryPage = () => {
                           key={item.product_id}
                           style={index % 2 === 0 ? tableStyles.evenRow : {}}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              tableStyles.hoverRow.backgroundColor)
+                          (e.currentTarget.style.backgroundColor =
+                            tableStyles.hoverRow.backgroundColor)
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor =
-                              index % 2 === 0
-                                ? tableStyles.evenRow.backgroundColor
-                                : "transparent")
+                          (e.currentTarget.style.backgroundColor =
+                            index % 2 === 0
+                              ? tableStyles.evenRow.backgroundColor
+                              : "transparent")
                           }
                         >
                           <td style={tableStyles.td}>
@@ -304,20 +329,33 @@ const SellerSellingHistoryPage = () => {
                               }}
                               onClick={() =>
                                 navigate(`/product/${item.product_id}`)
-                              } // Navigate to product details
+                              }
                             >
                               Details
                             </button>
 
-                            <button
-                              style={{
-                                ...tableStyles.button,
-                                ...tableStyles.deleteBtn,
-                              }}
-                              onClick={() => deleteProduct(item.product_id)}
-                            >
-                              Delete
-                            </button>
+                            {historyType === "DELETED" ? (
+                              <button
+                                style={{
+                                  ...tableStyles.button,
+                                  backgroundColor: "#28a745",
+                                  color: "#fff",
+                                }}
+                                onClick={() => handleRestoreProduct(item.product_id)}
+                              >
+                                ADD TO THE SHOP AGAIN
+                              </button>
+                            ) : (
+                              <button
+                                style={{
+                                  ...tableStyles.button,
+                                  ...tableStyles.deleteBtn,
+                                }}
+                                onClick={() => deleteProduct(item.product_id)}
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -331,7 +369,7 @@ const SellerSellingHistoryPage = () => {
               </p>
             )}
           </div>
-          
+
         </div>
       </div>
     </div>
