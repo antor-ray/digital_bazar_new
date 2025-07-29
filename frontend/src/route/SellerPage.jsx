@@ -32,25 +32,27 @@ const SellerDashboard = () => {
   // for search bar
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 9; // or whatever number fits your layout
+  ///antor change
 
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const [discountRange, setDiscountRange] = useState({ min: 0, max: 100 });
   const [showSidebar, setShowSidebar] = useState(false);
 
   // State to manage expanded sections
-  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  //const [priceRange, setPriceRange] = useState({ min: "", max: "" });
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedRatings, setSelectedRatings] = useState([]);
   const [stockStatus, setStockStatus] = useState("all");
   const [search, setSearch] = useState("");
-  const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+  //const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [averageRating, setAverageRating] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
 
   // const filteredProducts = products.filter((product) =>
   //   product.name.toLowerCase().includes(searchQuery.toLowerCase())
   // );
 
   // Sample products data
-
 
   const [expandedSections, setExpandedSections] = useState({
     priceRange: false,
@@ -94,6 +96,13 @@ const SellerDashboard = () => {
     }));
   };
 
+  //antor change
+  useEffect(() => {
+    if (!showSidebar) {
+      setFilteredProducts(allProducts);
+    }
+  }, [showSidebar]);
+
   // 1. Fix the fetchSellerProducts function:
   const fetchSellerProducts = async () => {
     try {
@@ -110,6 +119,7 @@ const SellerDashboard = () => {
           status: p.stock > 0 ? "Active" : "Out of Stock",
         }));
         setProducts(fetchedProducts);
+        setAllProducts(fetchedProducts);
         setFilteredProducts(fetchedProducts); // Set to seller's products, not all products
         console.log("Fetched seller products:", fetchedProducts);
       } else {
@@ -140,11 +150,12 @@ const SellerDashboard = () => {
   //   }
   // }, [priceRange, selectedCategories, stockStatus, selectedRatings, search, discountRange, sellerId]);
 
-
   // Add these state variables at the top of your component (where other useState declarations are)
   // const [sortBy, setSortBy] = useState('');
   // const [sortDirection, setSortDirection] = useState('desc');
   // Fixed applyFiltersToBackend function
+
+  //antor change
   const applyFiltersToBackend = async () => {
     try {
       const queryParams = new URLSearchParams();
@@ -158,8 +169,11 @@ const SellerDashboard = () => {
         return;
       }
 
-      // FIX: Only add filters if they have meaningful values
-      if (priceRange.max && priceRange.max > 0) {
+      // Updated: Add both min and max price filters
+      if (priceRange.min > 0) {
+        queryParams.append("minPrice", priceRange.min);
+      }
+      if (priceRange.max < 100000) {
         queryParams.append("maxPrice", priceRange.max);
       }
 
@@ -175,12 +189,15 @@ const SellerDashboard = () => {
         queryParams.append("ratings", selectedRatings.join(","));
       }
 
-      // FIX: Use the correct search state
       if (search && search.trim()) {
         queryParams.append("search", search.trim());
       }
 
-      if (discountRange.max && discountRange.max > 0) {
+      // Updated: Add both min and max discount filters
+      if (discountRange.min > 0) {
+        queryParams.append("minDiscount", discountRange.min);
+      }
+      if (discountRange.max < 100) {
         queryParams.append("maxDiscount", discountRange.max);
       }
 
@@ -197,7 +214,6 @@ const SellerDashboard = () => {
       } else {
         console.error("Filter failed:", response.data.message);
       }
-
     } catch (error) {
       console.error("Error applying filters:", error);
       if (error.response?.data?.message) {
@@ -206,14 +222,14 @@ const SellerDashboard = () => {
     }
   };
 
-  // 2. Update the clearFilters function:
+  // 2. Update the clearFilters function: antor change
   const clearFilters = () => {
-    setPriceRange({ min: "", max: "" });
+    setPriceRange({ min: 0, max: 100000 });
     setSelectedCategories([]);
     setSelectedRatings([]);
     setStockStatus("all");
-    setSearch(""); // Clear search
-    setDiscountRange({ min: 0, max: 0 });
+    setSearch("");
+    setDiscountRange({ min: 0, max: 100 });
     setExpandedSections({
       discountRange: false,
       priceRange: false,
@@ -224,8 +240,6 @@ const SellerDashboard = () => {
     // Reset to original products
     setFilteredProducts(products);
   };
-
-
 
   useEffect(() => {
     const checkAuthSeller = async () => {
@@ -268,7 +282,9 @@ const SellerDashboard = () => {
   useEffect(() => {
     const fetchOrdersThisMonth = async () => {
       if (!sellerId) {
-        console.log("Seller ID not available, skipping orders this month fetch.");
+        console.log(
+          "Seller ID not available, skipping orders this month fetch."
+        );
         return;
       }
       try {
@@ -280,9 +296,15 @@ const SellerDashboard = () => {
         );
         if (response.data.status === "success") {
           setOrdersThisMonth(response.data.ordersThisMonth);
-          console.log("Fetched orders this month:", response.data.ordersThisMonth);
+          console.log(
+            "Fetched orders this month:",
+            response.data.ordersThisMonth
+          );
         } else {
-          console.error("Failed to fetch orders this month:", response.data.message);
+          console.error(
+            "Failed to fetch orders this month:",
+            response.data.message
+          );
         }
       } catch (error) {
         console.error("Error fetching orders this month:", error);
@@ -292,6 +314,7 @@ const SellerDashboard = () => {
       }
     };
 
+    fetchOrdersThisMonth();
     fetchOrdersThisMonth();
   }, [sellerId]);
 
@@ -350,7 +373,6 @@ const SellerDashboard = () => {
   };
 
   const editProduct = (product) => {
-
     setNewProduct({
       name: product.name,
       category: product.category,
@@ -401,7 +423,6 @@ const SellerDashboard = () => {
       alert("You can upload a maximum of 4 images and minimum 1 images.");
       return;
     }
-
 
     // ✅ Append new image files only
     newFiles.forEach((file) => {
@@ -537,20 +558,17 @@ const SellerDashboard = () => {
           >
             {/* Changed class name */}
             <Eye className="btnIcon" />
-
           </button>
           <button className="btn btnEdit" onClick={() => editProduct(product)}>
             {" "}
             {/* Changed class name */}
             <Edit className="btnIcon" />
-
           </button>
           <button
             onClick={() => deleteProduct(product.id)}
             className="btn btnDanger"
           >
             <Trash2 className="btnIcon" />
-
           </button>
         </div>
       </div>
@@ -566,17 +584,26 @@ const SellerDashboard = () => {
       {/* Header */}
       <header className="dashboardHeader">
         <div className="navbar">
-          <div className="nav-item menu-item"
-            onClick={() => setShowSidebar(!showSidebar)} >
-            <span className="icon_filter">☰</span>
+          <div
+            className="nav-item menu-item"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            <span className="filter-menu">Filter Products</span>
           </div>
 
           <div>
             <h1 className="headerTitle">{sellerName.toUpperCase()}</h1>
-
           </div>
 
           <div className="headerActions">
+            <button
+              onClick={() => setShowAddProduct(true)}
+              className="btn btnPrimary"
+            >
+              <Plus className="btnIcon" />
+              Add Product
+            </button>
+
             <button
               onClick={() => navigate("/SellerProfilePage")}
               className="btn btnSecondary"
@@ -588,14 +615,6 @@ const SellerDashboard = () => {
             <button onClick={handleLogout} className="btn btnDanger">
               <X className="btnIcon" />
               Logout
-            </button>
-
-            <button
-              onClick={() => setShowAddProduct(true)}
-              className="btn btnPrimary"
-            >
-              <Plus className="btnIcon" />
-              Add Product
             </button>
           </div>
         </div>
@@ -616,11 +635,13 @@ const SellerDashboard = () => {
               </div>
             </div>
             <div className="statCard">
-              <div className="statContent" style={{ cursor: "pointer" }} onClick={() => navigate("/SellerPage/SellerSellingHistoryPage")}>
-
+              <div
+                className="statContent"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/SellerPage/SellerSellingHistoryPage")}
+              >
                 <div>
-                  <p className="statValue" >History</p>
-
+                  <p className="statValue">History</p>
                 </div>
               </div>
             </div>
@@ -629,12 +650,7 @@ const SellerDashboard = () => {
                 <Star className="statIcon yellow" />
                 <div>
                   <p className="statLabel">Average Rating</p>
-                  <p className="statValue">
-                    ${!isNaN(averageRating) ? averageRating : "0"}
-                  </p>
-
-
-
+                  <p className="statValue">4.8</p>
                 </div>
               </div>
             </div>
@@ -654,11 +670,12 @@ const SellerDashboard = () => {
 
         <div className="homePageLayout">
           {/* Sidebar - only show when showSidebar is true */}
+
           {showSidebar && (
             <div className="permanent-sidebar">
               <div className="filter-section">
                 <h4>Filter Products</h4>
-                {/* Discount Percentage Filter */}
+                {/* Discount Percentage Filter antor change*/}
                 <div className="filter-group">
                   <div
                     className="filter-header"
@@ -666,8 +683,9 @@ const SellerDashboard = () => {
                   >
                     <h5>Discount Percentage</h5>
                     <span
-                      className={`arrow ${expandedSections.discountRange ? "expanded" : ""
-                        }`}
+                      className={`arrow ${
+                        expandedSections.discountRange ? "expanded" : ""
+                      }`}
                     >
                       ▼
                     </span>
@@ -678,12 +696,35 @@ const SellerDashboard = () => {
                         <div className="discount-field">
                           <input
                             type="number"
-                            placeholder="Maximum Discount (%)"
-                            value={discountRange.max === 0 ? "" : discountRange.max}
+                            placeholder="Min Discount (%)"
+                            value={
+                              discountRange.min === 0 ? "" : discountRange.min
+                            }
                             onChange={(e) =>
                               setDiscountRange((prev) => ({
                                 ...prev,
-                                max: e.target.value ? Number(e.target.value) : 0,
+                                min: e.target.value
+                                  ? Number(e.target.value)
+                                  : 0,
+                              }))
+                            }
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <div className="discount-field">
+                          <input
+                            type="number"
+                            placeholder="Max Discount (%)"
+                            value={
+                              discountRange.max === 100 ? "" : discountRange.max
+                            }
+                            onChange={(e) =>
+                              setDiscountRange((prev) => ({
+                                ...prev,
+                                max: e.target.value
+                                  ? Number(e.target.value)
+                                  : 100,
                               }))
                             }
                             min="0"
@@ -691,31 +732,41 @@ const SellerDashboard = () => {
                           />
                         </div>
                       </div>
-                      <div className="discount-slider">
+                      <div className="dual-range-slider">
                         <input
                           type="range"
                           min="0"
                           max="100"
-                          value={discountRange.max || 0}
+                          value={discountRange.min}
                           onChange={(e) =>
                             setDiscountRange((prev) => ({
                               ...prev,
-                              max: Number(e.target.value),
+                              min: Math.min(Number(e.target.value), prev.max),
                             }))
                           }
-                          className="single-slider"
+                          className="range-slider range-min"
+                        />
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={discountRange.max}
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              max: Math.max(Number(e.target.value), prev.min),
+                            }))
+                          }
+                          className="range-slider range-max"
                         />
                       </div>
-                      {discountRange.max > 0 && (
-                        <div className="discount-range-text">
-                          0% - {discountRange.max}%
-                        </div>
-                      )}
+                      <div className="discount-range-text">
+                        {discountRange.min}% - {discountRange.max}%
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Price Range Filter */}
                 <div className="filter-group">
                   <div
                     className="filter-header"
@@ -723,8 +774,9 @@ const SellerDashboard = () => {
                   >
                     <h5>Price Range</h5>
                     <span
-                      className={`arrow ${expandedSections.priceRange ? "expanded" : ""
-                        }`}
+                      className={`arrow ${
+                        expandedSections.priceRange ? "expanded" : ""
+                      }`}
                     >
                       ▼
                     </span>
@@ -735,36 +787,69 @@ const SellerDashboard = () => {
                         <div className="price-field">
                           <input
                             type="number"
-                            placeholder="Maximum Price"
-                            value={priceRange.max === 0 ? "" : priceRange.max}
+                            placeholder="Min Price"
+                            value={priceRange.min === 0 ? "" : priceRange.min}
                             onChange={(e) =>
                               setPriceRange((prev) => ({
                                 ...prev,
-                                max: e.target.value ? Number(e.target.value) : 0,
+                                min: e.target.value
+                                  ? Number(e.target.value)
+                                  : 0,
+                              }))
+                            }
+                            min="0"
+                          />
+                        </div>
+                        <div className="price-field">
+                          <input
+                            type="number"
+                            placeholder="Max Price"
+                            value={
+                              priceRange.max === 100000 ? "" : priceRange.max
+                            }
+                            onChange={(e) =>
+                              setPriceRange((prev) => ({
+                                ...prev,
+                                max: e.target.value
+                                  ? Number(e.target.value)
+                                  : 100000,
                               }))
                             }
                             min="0"
                           />
                         </div>
                       </div>
-                      <div className="price-slider">
+                      <div className="dual-range-slider">
                         <input
                           type="range"
                           min="0"
                           max="100000"
-                          value={priceRange.max || 0}
+                          value={priceRange.min}
                           onChange={(e) =>
                             setPriceRange((prev) => ({
                               ...prev,
-                              max: Number(e.target.value),
+                              min: Math.min(Number(e.target.value), prev.max),
                             }))
                           }
-                          className="single-slider"
+                          className="range-slider range-min"
+                        />
+                        <input
+                          type="range"
+                          min="0"
+                          max="100000"
+                          value={priceRange.max}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: Math.max(Number(e.target.value), prev.min),
+                            }))
+                          }
+                          className="range-slider range-max"
                         />
                       </div>
-                      {priceRange.max > 0 && (
-                        <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
-                      )}
+                      <div className="price-range-text">
+                        ৳{priceRange.min} - ৳{priceRange.max}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -777,8 +862,9 @@ const SellerDashboard = () => {
                   >
                     <h5>Categories</h5>
                     <span
-                      className={`arrow ${expandedSections.categories ? "expanded" : ""
-                        }`}
+                      className={`arrow ${
+                        expandedSections.categories ? "expanded" : ""
+                      }`}
                     >
                       ▼
                     </span>
@@ -828,8 +914,9 @@ const SellerDashboard = () => {
                   >
                     <h5>Stock Status</h5>
                     <span
-                      className={`arrow ${expandedSections.stockStatus ? "expanded" : ""
-                        }`}
+                      className={`arrow ${
+                        expandedSections.stockStatus ? "expanded" : ""
+                      }`}
                     >
                       ▼
                     </span>
@@ -877,8 +964,9 @@ const SellerDashboard = () => {
                   >
                     <h5>Ratings</h5>
                     <span
-                      className={`arrow ${expandedSections.ratings ? "expanded" : ""
-                        }`}
+                      className={`arrow ${
+                        expandedSections.ratings ? "expanded" : ""
+                      }`}
                     >
                       ▼
                     </span>
@@ -917,10 +1005,8 @@ const SellerDashboard = () => {
                   Clear All Filters
                 </button>
               </div>
-
             </div>
           )}
-
 
           <div className="productsWrapper">
             <div className="sectionHeader searchHeader">
@@ -929,8 +1015,8 @@ const SellerDashboard = () => {
               <input
                 type="text"
                 placeholder="Search products..."
-                value={search}  // Changed from searchQuery to search
-                onChange={(e) => setSearch(e.target.value)}  // Changed to setSearch
+                value={search} // Changed from searchQuery to search
+                onChange={(e) => setSearch(e.target.value)} // Changed to setSearch
                 className="productSearchInput"
               />
             </div>
@@ -942,8 +1028,8 @@ const SellerDashboard = () => {
                 {" "}
                 {/* Changed class name */}
                 {filteredProducts
-                  .filter((p) =>
-                    p.name.toLowerCase().includes(search.toLowerCase()) // Use search instead of searchQuery
+                  .filter(
+                    (p) => p.name.toLowerCase().includes(search.toLowerCase()) // Use search instead of searchQuery
                   )
                   .slice(
                     (currentPage - 1) * productsPerPage,
@@ -952,7 +1038,6 @@ const SellerDashboard = () => {
                   .map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
-
               </div>
             </div>
             <div
@@ -964,7 +1049,6 @@ const SellerDashboard = () => {
                   if (currentPage > 1) setCurrentPage((p) => p - 1);
                 }}
                 disabled={currentPage === 1}
-
               >
                 ⬅ Back
               </button>
@@ -974,7 +1058,6 @@ const SellerDashboard = () => {
                   currentPage >=
                   Math.ceil(filteredProducts.length / productsPerPage)
                 }
-
               >
                 Next ➡
               </button>

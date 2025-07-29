@@ -18,6 +18,8 @@ import DeliveryManProfile from './route/DeliveryManProfile';
 import SellerSellingHistoryPage from "./route/SellerSellingHistoryPage";
 import SellerRegistration from "./route/SellerRegistration";
 import Login from "./route/Login";
+import CustomerHistoryPage from "./route/CustomerHistory";
+import DeliveryManHistoryPage from "./route/DeliveryManHistory";
 
 const App = () => {
   return (
@@ -53,6 +55,8 @@ const App = () => {
           <Route path="/SellerPage/SellerSellingHistoryPage" element={<SellerSellingHistoryPage />} />
           <Route path="/SellerRegistration" element={<SellerRegistration />} />
           <Route path="/Login" element={<Login/>}/>
+          <Route path="/CustomerHistory" element={<CustomerHistoryPage/>}/>
+          <Route path="/DeliveryManHistory" element={<DeliveryManHistoryPage/>}/>
         </Routes>
       </Router>
     </div>

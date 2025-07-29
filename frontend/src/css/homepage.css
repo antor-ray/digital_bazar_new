@@ -934,3 +934,81 @@ select {
     padding: 0.5rem 0.8rem;
   }
 }
+
+
+/* Add this CSS to your homepage.css file antor change */
+
+.dual-range-slider {
+  position: relative;
+  height: 6px;
+  margin: 15px 0;
+}
+
+.range-slider {
+  position: absolute;
+  width: 100%;
+  height: 6px;
+  outline: none;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+}
+
+.range-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #007bff;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.range-slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #007bff;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.dual-range-slider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.price-input-row, .discount-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.price-field, .discount-field {
+  flex: 1;
+}
+
+.price-field input, .discount-field input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.price-range-text, .discount-range-text {
+  text-align: center;
+  font-weight: bold;
+  color: #007bff;
+  margin-top: 10px;
+}

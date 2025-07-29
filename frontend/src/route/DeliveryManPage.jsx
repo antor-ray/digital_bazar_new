@@ -110,7 +110,10 @@ const DeliveryManPage = () => {
           </button>
           {dropdownVisible && (
             <ul className="profile-dropdown">
+              <li onClick={() => navigate("/DeliveryManHistory")}>History</li>
               <li onClick={() => navigate("/deliveryman/profile")}>Profile</li>
+
+
               <li onClick={handleLogout}>Logout</li>
             </ul>
           )}

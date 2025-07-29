@@ -6,15 +6,14 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const fs = require("fs");
 const bodyParser = require("body-parser");
-const SSLCommerzPayment = require('sslcommerz-lts');
-
+const SSLCommerzPayment = require("sslcommerz-lts");
 
 const path = require("path");
 
 const db = require("./db");
 const { message } = require("statuses");
 const isAuthenticated = require("./middleware/isAuthenticated");
-//   
+//
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -32,11 +31,9 @@ app.use(cookieParser());
 
 app.use("/images", express.static(path.join(__dirname, "/images")));
 
-
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-
+ 
   try {
     let user = null;
     let role = null;
@@ -50,8 +47,8 @@ app.post("/login", async (req, res) => {
 
     if (customerResult.rows.length > 0) {
       user = customerResult.rows[0];
-      role = 'customer';
-      userIdField = 'customer_id';
+      role = "customer";
+      userIdField = "customer_id";
     } else {
       // 2. If not a customer, check Seller table
       const sellerResult = await db.query(
@@ -61,8 +58,8 @@ app.post("/login", async (req, res) => {
 
       if (sellerResult.rows.length > 0) {
         user = sellerResult.rows[0];
-        role = 'seller';
-        userIdField = 'seller_id';
+        role = "seller";
+        userIdField = "seller_id";
       } else {
         // 3. If not a seller, check Delivery Man table
         const deliveryManResult = await db.query(
@@ -72,8 +69,8 @@ app.post("/login", async (req, res) => {
 
         if (deliveryManResult.rows.length > 0) {
           user = deliveryManResult.rows[0];
-          role = 'delivery_man';
-          userIdField = 'id';
+          role = "delivery_man";
+          userIdField = "id";
         }
       }
     }
@@ -83,11 +80,10 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-
     // User found, create token data
     const tokenData = {
       id: user[userIdField],
-      role: role
+      role: role,
     };
 
     const secretkey = process.env.JWT_SECRET_KEY;
@@ -106,7 +102,6 @@ app.post("/login", async (req, res) => {
         email: user.email,
         id: user[userIdField], // Use the specific ID field
       });
-
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error" });
@@ -182,33 +177,37 @@ app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), as
       `SELECT email, customer_name, password, city, region, detail_address, phone_number
         FROM customer
         WHERE customer_id = $1`,
-      [customerId]
-    );
+        [customerId]
+      );
 
-
-    res.json({
-      status: "success",
-      customer: results.rows,
-    });
-  } catch (err) {
-    console.log(err);
+      res.json({
+        status: "success",
+        customer: results.rows,
+      });
+    } catch (err) {
+      console.log(err);
+    }
   }
-});
+);
 
-app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.id;
-  const {
-    email,
-    customer_name,
-    password,
-    city,
-    region,
-    detail_address,
-    phone_number
-  } = req.body;
-  try {
-    await db.query(
-      `UPDATE customer
+app.put(
+  "/api/customer/profile",
+  isAuthenticated,
+  authorizeRoles("customer"),
+  async (req, res) => {
+    const customerId = req.user.id;
+    const {
+      email,
+      customer_name,
+      password,
+      city,
+      region,
+      detail_address,
+      phone_number,
+    } = req.body;
+    try {
+      await db.query(
+        `UPDATE customer
        SET email = $1,
            customer_name = $2,
            password = $3,
@@ -217,14 +216,26 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
            detail_address = $6,
            phone_number = $7
        WHERE customer_id = $8`,
-      [email, customer_name, password, city, region, detail_address, phone_number, customerId]
-    );
-    res.status(200).json({ message: 'Customer profile updated successfully' });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: 'Internal server error' });
+        [
+          email,
+          customer_name,
+          password,
+          city,
+          region,
+          detail_address,
+          phone_number,
+          customerId,
+        ]
+      );
+      res
+        .status(200)
+        .json({ message: "Customer profile updated successfully" });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-});
+);
 
 //customer notification
 // app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
@@ -240,7 +251,10 @@ app.put('/api/customer/profile', isAuthenticated, authorizeRoles('customer'), as
 //   res.json({ notifications: result.rows });
 // });
 
-app.get("/api/notifications", isAuthenticated, authorizeRoles("customer"),
+app.get(
+  "/api/notifications",
+  isAuthenticated,
+  authorizeRoles("customer"),
   async (req, res) => {
     try {
       const customer_id = req.user.id;
@@ -260,7 +274,6 @@ app.get("/api/notifications", isAuthenticated, authorizeRoles("customer"),
   }
 );
 
-
 //Delivery Man Login
 app.post("/DeliveryManlogin", async (req, res) => {
   const { email, password } = req.body;
@@ -274,7 +287,7 @@ app.post("/DeliveryManlogin", async (req, res) => {
     }
     let tokenData = {
       deliveryMan_id: result.rows[0].id,
-      role: 'deliveryMan'
+      role: "deliveryMan",
     };
 
     const secretkey = process.env.JWT_SECRET_KEY;
@@ -307,90 +320,67 @@ app.post("/deliveryman/logout", (req, res) => {
 
 app.post("/registerDeliveryMan", async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      phone_number,
-      region,
-      city,
-      password
-    } = req.body;
+    const { name, email, phone_number, region, city, password } = req.body;
 
-    if (
-      !name ||
-      !email ||
-      !password ||
-      !phone_number ||
-      !region ||
-      !city
-    ) {
+    if (!name || !email || !password || !phone_number || !region || !city) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
     const newCustomer = await db.query(
       "INSERT INTO delivery_man (name,email,phone_number,region,city,password) VALUES ($1, $2, $3, $4, $5,$6) RETURNING *",
-      [
-        name,
-        email,
-        phone_number,
-        region,
-        city,
-        password
-      ]
+      [name, email, phone_number, region, city, password]
     );
 
-    res
-      .status(201)
-      .json({
-        message: "Delivery Man registered successfully",
-        customer: newCustomer.rows[0],
-      });
+    res.status(201).json({
+      message: "Delivery Man registered successfully",
+      customer: newCustomer.rows[0],
+    });
   } catch (err) {
     console.error("Error registering Delivery man:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-
 //delivery man profile
 
-app.get("/api/deliveryman/profile", isAuthenticated, authorizeRoles('delivery_man'), async (req, res) => {
-  const deliveryManId = req.user.id;
-  try {
-    const results = await db.query(
-      `SELECT email, name, password, city, region, phone_number
+app.get(
+  "/api/deliveryman/profile",
+  isAuthenticated,
+  authorizeRoles("delivery_man"),
+  async (req, res) => {
+    const deliveryManId = req.user.id;
+    try {
+      const results = await db.query(
+        `SELECT email, name, password, city, region, phone_number
          FROM delivery_man
          WHERE id = $1`,
-      [deliveryManId]
-    );
+        [deliveryManId]
+      );
 
-    res.json({
-      status: "success",
-      deliveryMan: results.rows,
-    });
-  } catch (err) {
-    console.error('Error fetching delivery man profile:', err);
-    res.status(500).json({ error: 'Internal server error' });
+      res.json({
+        status: "success",
+        deliveryMan: results.rows,
+      });
+    } catch (err) {
+      console.error("Error fetching delivery man profile:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-}
 );
 
 //edit delivery man profile
 
-app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('delivery_man'), async (req, res) => {
-  const deliveryManId = req.user.id;
-  const {
-    email,
-    name,
-    password,
-    city,
-    region,
-    phone_number
-  } = req.body;
+app.put(
+  "/api/deliveryman/profile",
+  isAuthenticated,
+  authorizeRoles("delivery_man"),
+  async (req, res) => {
+    const deliveryManId = req.user.id;
+    const { email, name, password, city, region, phone_number } = req.body;
 
-  try {
-    await db.query(
-      `UPDATE delivery_man
+    try {
+      await db.query(
+        `UPDATE delivery_man
          SET email = $1,
              name = $2,
              password = $3,
@@ -398,19 +388,18 @@ app.put("/api/deliveryman/profile", isAuthenticated, authorizeRoles('delivery_ma
              region = $5,
              phone_number = $6
          WHERE id = $7`,
-      [email, name, password, city, region, phone_number, deliveryManId]
-    );
+        [email, name, password, city, region, phone_number, deliveryManId]
+      );
 
-    res.status(200).json({ message: "Delivery man profile updated successfully" });
-  } catch (err) {
-    console.error('Error updating delivery man profile:', err);
-    res.status(500).json({ error: 'Internal server error' });
+      res
+        .status(200)
+        .json({ message: "Delivery man profile updated successfully" });
+    } catch (err) {
+      console.error("Error updating delivery man profile:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-}
 );
-
-
-
 
 app.get("/api/v1/products", async (req, res) => {
   try {
@@ -433,8 +422,6 @@ JOIN (
     console.log(err);
   }
 });
-
-
 
 app.get("/api/v1/products/:id", async (req, res) => {
   const { id } = req.params;
@@ -468,8 +455,6 @@ app.get("/api/v1/products/:id", async (req, res) => {
     res.status(500).json({ message: "Error fetching product" });
   }
 });
-
-
 
 app.get("/cartItems", isAuthenticated, async (req, res) => {
   try {
@@ -527,44 +512,46 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
 });
 
 //delete a item from cart
-app.delete("/delete/cart/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  try {
-    const customer_id = req.user.id;
-    const { product_id } = req.body;
+app.delete(
+  "/delete/cart/item",
+  isAuthenticated,
+  authorizeRoles("customer"),
+  async (req, res) => {
+    try {
+      const customer_id = req.user.id;
+      const { product_id } = req.body;
 
-    if (!product_id) {
-      return res.status(400).json({ error: "Product ID is required" });
+      if (!product_id) {
+        return res.status(400).json({ error: "Product ID is required" });
+      }
+
+      const cartResult = await db.query(
+        "select cart_id from customer where customer_id=$1",
+        [customer_id]
+      );
+      if (cartResult.rows.length == 0) {
+        return res
+          .status(400)
+          .json({ message: "Cart not found for this customer" });
+      }
+      const cart_id = cartResult.rows[0].cart_id;
+
+      const result = await db.query(
+        "DELETE FROM cart_item WHERE cart_id = $1 AND product_id = $2 RETURNING *",
+        [cart_id, product_id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: "Item not found in cart" });
+      }
+
+      res.json({ message: "Item deleted from cart successfully" });
+    } catch (err) {
+      console.error("Error deleting item from cart:", err);
+      res.status(500).json({ error: "Internal server error" });
     }
-
-    const cartResult = await db.query(
-      "select cart_id from customer where customer_id=$1",
-      [customer_id]
-    );
-    if (cartResult.rows.length == 0) {
-      return res
-        .status(400)
-        .json({ message: "Cart not found for this customer" });
-    }
-    const cart_id = cartResult.rows[0].cart_id;
-
-
-    const result = await db.query(
-      "DELETE FROM cart_item WHERE cart_id = $1 AND product_id = $2 RETURNING *",
-      [cart_id, product_id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Item not found in cart" });
-    }
-
-    res.json({ message: "Item deleted from cart successfully" });
-  } catch (err) {
-    console.error("Error deleting item from cart:", err);
-    res.status(500).json({ error: "Internal server error" });
   }
-});
-
-
+);
 
 //transfer products from cart to order_items
 
@@ -578,34 +565,31 @@ app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (r
     );
     const cart_id = cartResult.rows[0].cart_id;
 
-    for (const item of cartItems) {
-      const { product_id, quantity, selling_price } = item;
+      for (const item of cartItems) {
+        const { product_id, quantity, selling_price } = item;
 
-      await db.query(
-        "INSERT INTO order_item (order_id, product_id, quantity) VALUES ($1, $2, $3)",
-        [orderId, product_id, quantity]
-      );
+        await db.query(
+          "INSERT INTO order_item (order_id, product_id, quantity) VALUES ($1, $2, $3)",
+          [orderId, product_id, quantity]
+        );
 
-      await db.query(
-        "UPDATE sell SET stock = stock - $1 WHERE product_id = $2",
-        [quantity, product_id]
-      );
+        await db.query(
+          "UPDATE sell SET stock = stock - $1 WHERE product_id = $2",
+          [quantity, product_id]
+        );
+      }
 
+      await db.query(`DELETE FROM cart_item WHERE cart_id = $1`, [cart_id]);
+
+      res
+        .status(200)
+        .json({ message: "Items transferred to order successfully" });
+    } catch (err) {
+      console.error("Error during item transfer:", err);
+      res.status(500).json({ message: "Failed to transfer items" });
     }
-
-    await db.query(
-      `DELETE FROM cart_item WHERE cart_id = $1`,
-      [cart_id]
-    );
-
-    res.status(200).json({ message: "Items transferred to order successfully" });
-
-  } catch (err) {
-    console.error("Error during item transfer:", err);
-    res.status(500).json({ message: "Failed to transfer items" });
   }
-});
-
+);
 
 app.get("/api/v1/paymentMethods", async (req, res) => {
   try {
@@ -622,7 +606,7 @@ app.get("/api/v1/paymentMethods", async (req, res) => {
   }
 });
 
-app.post("/orderItems", async (req, res) => { });
+app.post("/orderItems", async (req, res) => {});
 
 app.get("/categoryProducts/:categoryName", async (req, res) => {
   const categoryName = req.params.categoryName;
@@ -709,33 +693,213 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
   }
 });
 
-/// add to WishList-------------------------------------------------------------------
-app.post("/add_to_wishlist", isAuthenticated, async (req, res) => {
-  const { product_id } = req.body;
-  const customer_id = req.user.id;
-  // console.log(customer_id);
-  try {
-    const wishListResult = await db.query(
-      "select wishlist_id from customer where customer_id=$1",
-      [customer_id]
-    );
-    if (wishListResult.rows.length == 0) {
-      return res
-        .status(400)
-        .json({ message: "wishlist not found for this customer" });
-    }
-    const wishlist_id = wishListResult.rows[0].wishlist_id;
 
-    await db.query(
-      "insert into wish_item(product_id, wishlist_id) values($1,$2)",
-      [product_id, wishlist_id]
-    );
-    //console.log(product_id);
-    res.status(200).json({ message: "Added to wishList" });
-  } catch (err) {
-    console.error("Error adding to wishlist:", err);
-    res.status(500).json({ message: "Failed to add to wishList" });
-  }
+// customer history API endpoint - Revised for new filtering options and schema considerations antor change
+app.get('/customerHistory', isAuthenticated, async (req, res) => {
+    try {
+        const customerId = req.user.id;
+        const { month, sortBy } = req.query;
+
+        let baseQuery = '';
+        let queryParams = [customerId];
+        let paramIndex = 2; // Start parameters from $2 for month filtering
+
+        // Helper to add month filter to any query
+        const addMonthFilter = (query) => {
+            if (month) {
+                const [year, monthNum] = month.split('-');
+                query += ` AND TO_CHAR(co.date, 'YYYY-MM') = $${paramIndex}`;
+                queryParams.push(`${year}-${monthNum}`);
+                paramIndex++;
+            }
+            return query;
+        };
+
+        if (sortBy === 'most_bought_products') {
+            // This query counts how many times each product has been bought by the customer.
+            // It links to seller info via the 'sell' table.
+            // NOTE: If a product is sold by multiple sellers in the 'sell' table,
+            // this query might arbitrarily pick one seller for 'sellerName'/'sellerPhone'
+            // or return multiple entries if the join on 'sell' is not distinct enough.
+            // For accurate 'seller of THIS specific order item', 'order_item' needs 'seller_id'.
+            baseQuery = `
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.short_des, -- Include short description for product context
+                    MIN(i.image_url) AS image_url, -- Use MIN to pick one image_url per product if multiple exist
+                    COUNT(oi.product_id) AS total_bought_count,
+                    COALESCE(MAX(s.business_name), 'N/A') AS seller_name, -- Get a seller name (arbitrary if multiple)
+                    COALESCE(MAX(s.phone_number), 'N/A') AS seller_phone -- Get a seller phone (arbitrary if multiple)
+                FROM
+                    customer_order co
+                JOIN
+                    order_item oi ON co.order_id = oi.order_id
+                JOIN
+                    product p ON oi.product_id = p.product_id
+                LEFT JOIN
+                    image i ON p.product_id = i.product_id -- Join to get product image
+                LEFT JOIN
+                    sell sl ON p.product_id = sl.product_id -- Link product to seller via sell table
+                LEFT JOIN
+                    seller s ON sl.seller_id = s.seller_id
+                WHERE
+                    co.customer_id = $1
+                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+            `;
+
+            baseQuery = addMonthFilter(baseQuery);
+
+            baseQuery += `
+                GROUP BY
+                    p.product_id,
+                    p.product_name,
+                    p.short_des
+                ORDER BY
+                    total_bought_count DESC
+            `;
+
+        } else if (sortBy === 'top_sellers') {
+            // This query identifies sellers whose products appear most frequently in the customer's purchase history.
+            // Due to schema, it cannot definitively say 'this customer bought from THIS seller for THIS item'.
+            // It counts distinct products bought by the customer that are associated with each seller in the 'sell' table.
+            baseQuery = `
+                SELECT
+                    s.seller_id,
+                    s.business_name AS seller_name,
+                    s.phone_number AS seller_phone,
+                    COUNT(DISTINCT p.product_id) AS distinct_products_bought, -- Count distinct products from this seller
+                    SUM(oi.quantity) AS total_items_from_seller -- Sum of quantities from products associated with this seller
+                FROM
+                    customer_order co
+                JOIN
+                    order_item oi ON co.order_id = oi.order_id
+                JOIN
+                    product p ON oi.product_id = p.product_id
+                JOIN
+                    sell sl ON p.product_id = sl.product_id -- Link product to seller via sell table
+                JOIN
+                    seller s ON sl.seller_id = s.seller_id
+                WHERE
+                    co.customer_id = $1
+                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+            `;
+
+            baseQuery = addMonthFilter(baseQuery);
+
+            baseQuery += `
+                GROUP BY
+                    s.seller_id,
+                    s.business_name,
+                    s.phone_number
+                ORDER BY
+                    total_items_from_seller DESC -- Order by total quantity bought
+            `;
+
+        } else {
+            // Original query for normal purchase history (by order)
+            // NOTE: The join 'LEFT JOIN sell sl ON p.product_id = sl.product_id'
+            // and subsequent join to 'seller' will pick an arbitrary seller if multiple
+            // sellers offer the same product and there's no seller_id in order_item.
+            baseQuery = `
+                SELECT
+                    co.order_id,
+                    co.date AS date,
+                    co.total_cost AS total,
+                    dm.name AS deliveryManName,
+                    dm.phone_number AS deliveryManPhone,
+                    JSON_AGG(
+                        JSON_BUILD_OBJECT(
+                            'productName', p.product_name,
+                            'productId', p.product_id,
+                            'categoryName', cat.category_name,
+                            'quantity', oi.quantity,
+                            'price', sl.selling_price,
+                            'sellerName', s.business_name,
+                            'sellerPhone', s.phone_number
+                        ) ORDER BY p.product_name
+                    ) AS items
+                FROM
+                    customer_order co
+                JOIN payment pay ON co.order_id = pay.order_id
+                JOIN order_item oi ON co.order_id = oi.order_id
+                LEFT JOIN product p ON oi.product_id = p.product_id
+                LEFT JOIN category cat ON p.category_id = cat.category_id
+                LEFT JOIN sell sl ON p.product_id = sl.product_id
+                LEFT JOIN seller s ON sl.seller_id = s.seller_id
+                LEFT JOIN delivery_man dm ON co.delivery_man_id = dm.id
+                WHERE
+                    co.customer_id = $1
+                    AND pay.status = 'successful'
+            `;
+
+            baseQuery = addMonthFilter(baseQuery);
+
+            baseQuery += `
+                GROUP BY
+                    co.order_id,
+                    co.date,
+                    co.total_cost,
+                    dm.name,
+                    dm.phone_number
+            `;
+
+            // Apply sorting for the original history view
+            if (sortBy === "newest_date") {
+                baseQuery += ` ORDER BY co.date DESC`;
+            } else if (sortBy === "oldest_date") {
+                baseQuery += ` ORDER BY co.date ASC`;
+            } else if (sortBy === "highest_total") {
+                baseQuery += ` ORDER BY co.total_cost DESC`;
+            } else if (sortBy === "lowest_total") {
+                baseQuery += ` ORDER BY co.total_cost ASC`;
+            } else {
+                baseQuery += ` ORDER BY co.date DESC`; // Default sort
+            }
+        }
+
+        const result = await db.query(baseQuery, queryParams);
+        const historyData = result.rows;
+        const totalItems = historyData.length;
+
+        if (!historyData || historyData.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                purchaseHistory: [],
+                mostBoughtProducts: [],
+                topSellers: [],
+                totalOrders: 0 // Reset total orders for empty results
+            });
+        }
+
+        // Return the appropriate data structure based on the sortBy filter
+        if (sortBy === 'most_bought_products') {
+            res.status(200).json({
+                status: "success",
+                mostBoughtProducts: historyData,
+                totalOrders: totalItems // This is count of distinct products
+            });
+        } else if (sortBy === 'top_sellers') {
+            res.status(200).json({
+                status: "success",
+                topSellers: historyData,
+                totalOrders: totalItems // This is count of distinct sellers
+            });
+        } else {
+            res.status(200).json({
+                status: "success",
+                purchaseHistory: historyData,
+                totalOrders: totalItems
+            });
+        }
+
+    } catch (error) {
+        console.error("Error fetching customer history:", error);
+        res.status(500).json({
+            status: "error",
+            message: "Failed to retrieve purchase history. Please try again later."
+        });
+    }
 });
 
 // wishlist items fetching-------------------------------
@@ -747,14 +911,21 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT 
-         p.product_id, 
-         p.product_name, 
-         p.short_des, 
-         i.image_url
-       FROM product p
-       JOIN wish_item w ON p.product_id = w.product_id
-       JOIN image i ON i.product_id = p.product_id
-       WHERE w.wishlist_id = $1`,
+        p.product_id, 
+        p.product_name, 
+        sr.business_name, c.category_name AS category,
+        (
+          SELECT i.image_url 
+          FROM image i 
+          WHERE i.product_id = p.product_id 
+          LIMIT 1
+        ) AS image_url
+      FROM product p
+      JOIN sell s ON p.product_id = s.product_id
+      JOIN category c ON p.category_id = c.category_id
+      JOIN seller sr ON s.seller_id = sr.seller_id
+      JOIN wish_item w ON p.product_id = w.product_id
+      WHERE w.wishlist_id = $1;`,
       [customerId]
     );
 
@@ -766,43 +937,55 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
   }
 });
 
-//similar products------------------------------------------------
-app.get("/api/v1/products/similar/:id", async (req, res) => {
-  const productId = parseInt(req.params.id);
-  let tags = req.query.tags;
+///antor change remove from wishlist--------------------------------------------
+app.delete(
+  "/api/v1/wishlist/remove/:productId",
+  isAuthenticated,
+  async (req, res) => {
+    const productId = req.params.productId;
+    const customerId = req.user.id;
 
-  if (!tags) {
-    return res.status(400).json({ error: "Tags are required for similarity check." });
+    try {
+      // Get wishlist_id for the customer
+      const wishListResult = await db.query(
+        "SELECT wishlist_id FROM customer WHERE customer_id = $1",
+        [customerId]
+      );
+
+      if (wishListResult.rows.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Wishlist not found for this customer" });
+      }
+
+      const wishlistId = wishListResult.rows[0].wishlist_id;
+
+      // Delete the item from the wish_item table
+      const deleteResult = await db.query(
+        "DELETE FROM wish_item WHERE wishlist_id = $1 AND product_id = $2",
+        [wishlistId, productId]
+      );
+
+      if (deleteResult.rowCount === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Product not found in wishlist" });
+      }
+
+      res
+        .status(200)
+        .json({ success: true, message: "Product removed from wishlist" });
+    } catch (err) {
+      console.error("Error removing product from wishlist:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "Failed to remove product from wishlist",
+        });
+    }
   }
-
-  // Convert tags from query string to array
-  if (typeof tags === "string") {
-    tags = tags.split(",").map((tag) => tag.trim());
-  }
-
-  try {
-    // Create placeholders like: tags ILIKE '%' || $2 || '%' OR tags ILIKE '%' || $3 || '%'
-    const tagConditions = tags
-      .map((_, idx) => `tags ILIKE '%' || $${idx + 2} || '%'`)
-      .join(" OR ");
-
-    const query = `
-      SELECT * FROM product p join sell s on p.product_id=s.product_id
-      join image i on p.product_id=i.product_id
-      WHERE p.product_id != $1 AND (${tagConditions})
-    `;
-
-    const values = [productId, ...tags];
-
-    const result = await db.query(query, values);
-
-    res.status(200).json({ products: result.rows });
-  } catch (err) {
-    console.error("Error fetching similar products:", err);
-    res.status(500).json({ error: "Failed to fetch similar products." });
-  }
-});
-
+);
 
 ///seller login----------------------------------------------------
 
@@ -815,7 +998,6 @@ app.post("/SellerLogin", async (req, res) => {
       .status(400)
       .json({ success: false, message: "Email and password are required." });
   }
-
 
   try {
     const result = await db.query(
@@ -837,8 +1019,10 @@ app.post("/SellerLogin", async (req, res) => {
     //console.log(result.rows);
 
     const secretkey_seller = process.env.JWT_SECRET_KEY_seller;
-    const token_seller = jwt.sign(tokenData_seller, secretkey_seller, { expiresIn: "1d" });
-    console.log('hello');
+    const token_seller = jwt.sign(tokenData_seller, secretkey_seller, {
+      expiresIn: "1d",
+    });
+    console.log("hello");
     return res
       .cookie("token_seller", token_seller, {
         httpOnly: true,
@@ -877,34 +1061,40 @@ app.get("/getSellerInfo", isAuthenticated, async (req, res) => {
   }
 });
 
-
-
 app.post("/SellerRegister", async (req, res) => {
-
   const {
     email,
     password,
     business_name,
     about = "",
     phone_number,
-    address
+    address,
   } = req.body;
 
   // Basic validation
-  if (!email || !password || !business_name || !phone_number || !address || !about) {
+  if (
+    !email ||
+    !password ||
+    !business_name ||
+    !phone_number ||
+    !address ||
+    !about
+  ) {
     return res.status(400).json({
       success: false,
-      message: "All required fields must be filled."
+      message: "All required fields must be filled.",
     });
   }
 
   try {
     // Check for duplicate email
-    const existing = await db.query("SELECT * FROM seller WHERE email = $1", [email]);
+    const existing = await db.query("SELECT * FROM seller WHERE email = $1", [
+      email,
+    ]);
     if (existing.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: "Seller already registered with this email."
+        message: "Seller already registered with this email.",
       });
     }
 
@@ -919,21 +1109,18 @@ app.post("/SellerRegister", async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Seller registered successfully.",
-      seller: result.rows[0]
+      seller: result.rows[0],
     });
-
   } catch (err) {
     console.error("Seller registration error:", err);
     res.status(500).json({
       success: false,
-      message: "Server error while registering seller."
+      message: "Server error while registering seller.",
     });
   }
 });
 
-
 ///  product adding -----------------------------------------------
-
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "images")),
@@ -1114,16 +1301,8 @@ app.put(
   upload.array("images", 4),
   async (req, res) => {
     const product_id = req.params.id;
-    const {
-      name,
-      category,
-      price,
-      discount,
-      stock,
-      details,
-      short_des,
-      tags,
-    } = req.body;
+    const { name, category, price, discount, stock, details, short_des, tags } =
+      req.body;
 
     try {
       // 1. Get category_id from category name
@@ -1158,13 +1337,7 @@ app.put(
           selling_price = $3,
           stock = $4
         WHERE product_id = $5`,
-        [
-          price,
-          discount,
-          price - price * (discount / 100),
-          stock,
-          product_id,
-        ]
+        [price, discount, price - price * (discount / 100), stock, product_id]
       );
 
       // 4. Handle new images only — delete all old images
@@ -1222,7 +1395,9 @@ app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
     const seller_id = req.user.id;
 
     if (!seller_id) {
-      return res.status(401).json({ status: "error", message: "Seller not authenticated." });
+      return res
+        .status(401)
+        .json({ status: "error", message: "Seller not authenticated." });
     }
 
     const results = await db.query(
@@ -1254,23 +1429,31 @@ app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching seller-specific products:", err);
-    res.status(500).json({ status: "error", message: "Server error fetching seller products." });
+    res
+      .status(500)
+      .json({
+        status: "error",
+        message: "Server error fetching seller products.",
+      });
   }
 });
 
-
-
 // DELETE /SellerPage/deleteProduct/:id
-app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) => {
-  const productId = req.params.id;
-  const seller_id = req.user.id;
+app.delete(
+  "/SellerPage/deleteProduct/:id",
+  isAuthenticated,
+  async (req, res) => {
+    const productId = req.params.id;
+    const seller_id = req.user.id;
 
-  if (!seller_id) {
-    return res.status(401).json({ success: false, message: "Unauthorized seller." });
-  }
+    if (!seller_id) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized seller." });
+    }
 
-  try {
-    await db.query("BEGIN");
+    try {
+      await db.query("BEGIN");
 
     // Check if product exists and belongs to seller
     // const checkProduct = await db.query(
@@ -1283,10 +1466,15 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) =>
       [productId, seller_id]
     );
 
-    if (checkProduct.rowCount === 0) {
-      await db.query("ROLLBACK");
-      return res.status(404).json({ success: false, message: "Product not found or unauthorized." });
-    }
+      if (checkProduct.rowCount === 0) {
+        await db.query("ROLLBACK");
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "Product not found or unauthorized.",
+          });
+      }
 
     // 1. Get image filenames from the DB
     // const imageResult = await db.query(
@@ -1308,7 +1496,7 @@ app.delete("/SellerPage/deleteProduct/:id", isAuthenticated, async (req, res) =>
     //   });
     // });
 
-    // 4. Delete sell and product entries
+      // 4. Delete sell and product entries
 
     // await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
     // await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
@@ -1407,12 +1595,14 @@ app.get("/api/seller/ratings", async (req, res) => {
 
 
 ///seller profile update _-------------------
-app.put('/SellerEditProfile', isAuthenticated, async (req, res) => {
+app.put("/SellerEditProfile", isAuthenticated, async (req, res) => {
   const { email, business_name, about, phone_number, address } = req.body;
   const sellerId = req.user.id;
   // Check for any missing fields
   if (!email || !business_name || !about || !phone_number || !address) {
-    return res.status(400).json({ success: false, message: "All fields are required." });
+    return res
+      .status(400)
+      .json({ success: false, message: "All fields are required." });
   }
 
   try {
@@ -1423,10 +1613,10 @@ app.put('/SellerEditProfile', isAuthenticated, async (req, res) => {
       [email, business_name, about, phone_number, address, sellerId]
     );
 
-    res.json({ success: true, message: 'Seller profile updated' });
+    res.json({ success: true, message: "Seller profile updated" });
   } catch (error) {
-    console.error('Error updating seller profile:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error updating seller profile:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1445,20 +1635,24 @@ app.put("/SellerEditPassword", isAuthenticated, async (req, res) => {
     // console.log(result);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Seller not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Seller not found" });
     }
 
     const storedPassword = result.rows[0].password;
 
     if (currentPassword !== storedPassword) {
-      return res.status(401).json({ success: false, message: "Incorrect current password" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Incorrect current password" });
     }
 
     // Update with new password (in plain text)
-    await db.query(
-      "UPDATE seller SET password = $1 WHERE seller_id = $2",
-      [newPassword, seller_id]
-    );
+    await db.query("UPDATE seller SET password = $1 WHERE seller_id = $2", [
+      newPassword,
+      seller_id,
+    ]);
 
     res.json({ success: true, message: "Password updated successfully" });
   } catch (err) {
@@ -1467,17 +1661,15 @@ app.put("/SellerEditPassword", isAuthenticated, async (req, res) => {
   }
 });
 
-
-
 //order and delivery details:
-
 
 app.post("/api/orders", isAuthenticated, async (req, res) => {
   const { address, grandTotal, paymentMethod } = req.body;
   const customerId = req.user.id;
+  // console.log(customerId);
 
   try {
-    await db.query("BEGIN"); // Start transaction
+    // await db.query("BEGIN"); // Start transaction
 
     const parts = [address.city, address.region, address.roadSector];
     const fullAddress = parts.filter(Boolean).join(", ");
@@ -1513,9 +1705,9 @@ app.post("/api/orders", isAuthenticated, async (req, res) => {
   }
 });
 
-
 app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
   const { address, orderId } = req.body;
+ // console.log(req.body);
 
   try {
     const region = address.region;
@@ -1529,7 +1721,12 @@ app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
     );
 
     if (deliverymen.rowCount === 0) {
-      return res.status(404).json({ success: false, error: "No delivery men found in this region." });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          error: "No delivery men found in this region.",
+        });
     }
 
     // 2. Send proposals to each deliveryman
@@ -1546,11 +1743,11 @@ app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
     res.json({ success: true, message: "Proposal sent to deliverymen." });
   } catch (err) {
     console.error("Send proposal error:", err);
-    res.status(500).json({ success: false, error: "Failed to send proposals." });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to send proposals." });
   }
 });
-
-
 
 //Deliveryman Backend Routes
 app.get("/proposal", isAuthenticated, async (req, res) => {
@@ -1581,7 +1778,6 @@ app.post("/respond", isAuthenticated, async (req, res) => {
   const deliveryManId = req.user.id;
 
   try {
-
     // Update accepted proposal
     await db.query(
       `UPDATE delivery_proposal
@@ -1673,9 +1869,11 @@ app.post('/mark-delivered', async (req, res) => {
 
 
 //payment method
-app.use(bodyParser.urlencoded({
-  extended: false
-}));
+app.use(
+  bodyParser.urlencoded({
+    extended: false,
+  })
+);
 
 app.use(bodyParser.json());
 
@@ -1683,48 +1881,60 @@ app.post("/ssl-request", async (req, res) => {
   try {
     const { amount, address, orderId } = req.body;
 
-    if (!amount || !address?.city || !address?.region || !address?.roadSector || !orderId) {
+    if (
+      !amount ||
+      !address?.city ||
+      !address?.region ||
+      !address?.roadSector ||
+      !orderId
+    ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const data = {
       value_a: orderId,
       total_amount: amount,
-      currency: 'BDT',
-      tran_id: 'TRX_' + Date.now(),
-      success_url: 'http://localhost:4000/ssl-payment-success',
-      fail_url: 'http://localhost:4000/ssl-payment-fail',
-      cancel_url: 'http://localhost:4000/ssl-payment-cancel',
-      ipn_url: 'http://localhost:4000/ssl-payment-ipn',
-      shipping_method: 'Courier',
-      product_name: 'Checkout Order',
-      product_category: 'Ecommerce',
-      product_profile: 'general',
-      cus_name: 'Customer Name',
-      cus_email: 'customer@example.com',
-      cus_add1: address.roadSector || 'Default Road',
-      cus_add2: address.region || 'Default Region',
-      cus_city: address.city || 'Default City',
-      cus_state: 'State',
-      cus_postcode: '1200',
-      cus_country: 'Bangladesh',
-      cus_phone: '01700000000',
-      cus_fax: '01700000000',
-      ship_name: 'Customer Name',
-      ship_add1: address.roadSector || 'Default Road',
-      ship_add2: address.region || 'Default Region',
-      ship_city: address.city || 'Default City',
-      ship_state: 'State',
-      ship_postcode: '1200',
-      ship_country: 'Bangladesh',
+      currency: "BDT",
+      tran_id: "TRX_" + Date.now(),
+      success_url: "http://localhost:4000/ssl-payment-success",
+      fail_url: "http://localhost:4000/ssl-payment-fail",
+      cancel_url: "http://localhost:4000/ssl-payment-cancel",
+      ipn_url: "http://localhost:4000/ssl-payment-ipn",
+      shipping_method: "Courier",
+      product_name: "Checkout Order",
+      product_category: "Ecommerce",
+      product_profile: "general",
+      cus_name: "Customer Name",
+      cus_email: "customer@example.com",
+      cus_add1: address.roadSector || "Default Road",
+      cus_add2: address.region || "Default Region",
+      cus_city: address.city || "Default City",
+      cus_state: "State",
+      cus_postcode: "1200",
+      cus_country: "Bangladesh",
+      cus_phone: "01700000000",
+      cus_fax: "01700000000",
+      ship_name: "Customer Name",
+      ship_add1: address.roadSector || "Default Road",
+      ship_add2: address.region || "Default Region",
+      ship_city: address.city || "Default City",
+      ship_state: "State",
+      ship_postcode: "1200",
+      ship_country: "Bangladesh",
     };
 
     //console.log("Sending to SSLCommerz:", data);
 
-    const sslcz = new SSLCommerzPayment(process.env.STORED_ID, process.env.STORED_PASSWORD, false);
+    const sslcz = new SSLCommerzPayment(
+      process.env.STORED_ID,
+      process.env.STORED_PASSWORD,
+      false
+    );
 
-    sslcz.init(data).then(apiResponse => {
-      const GatewayPageURL = apiResponse.GatewayPageURL;
+    sslcz
+      .init(data)
+      .then((apiResponse) => {
+        const GatewayPageURL = apiResponse.GatewayPageURL;
 
       if (GatewayPageURL) {
         //console.log("Redirecting to:", GatewayPageURL);
@@ -1743,8 +1953,6 @@ app.post("/ssl-request", async (req, res) => {
   }
 });
 
-
-
 app.post("/ssl-payment-success", async (req, res) => {
   const orderId = req.body?.value_a;
 
@@ -1753,7 +1961,6 @@ app.post("/ssl-payment-success", async (req, res) => {
       console.error("Missing orderId in SSLCommerz success payload");
       return res.redirect("http://localhost:3000/paymentPage?status=failed");
     }
-
 
     await db.query(
       `UPDATE customer_order SET status = 'CONFIRMED' WHERE order_id = $1`,
@@ -1765,7 +1972,6 @@ app.post("/ssl-payment-success", async (req, res) => {
       [orderId]
     );
 
-
     return res.redirect("http://localhost:3000/paymentPage?status=success");
   } catch (err) {
     console.error("Error updating order after success:", err);
@@ -1773,37 +1979,29 @@ app.post("/ssl-payment-success", async (req, res) => {
   }
 });
 
-
-
-
 app.post("/ssl-payment-fail", async (req, res) => {
   const orderId = req.body?.value_a;
 
   if (orderId) {
-    await db.query(
-      `Update payment set status ='failed' where order_id=$1`,
-      [orderId]
-    );
+    await db.query(`Update payment set status ='failed' where order_id=$1`, [
+      orderId,
+    ]);
   }
 
   return res.redirect("http://localhost:3000/paymentPage?status=failed");
 });
 
-
 app.post("/ssl-payment-cancel", async (req, res, next) => {
   return res.status(200).json({
-    data: req.body
-  })
+    data: req.body,
+  });
 });
 
 app.post("/ssl-payment-ipn", async (req, res, next) => {
   return res.status(200).json({
-    data: req.body
-  })
+    data: req.body,
+  });
 });
-
-
-
 
 // Endpoint to fetch top sellers based on product sales
 
@@ -1836,7 +2034,7 @@ app.get("/api/top-sellers", async (req, res) => {
     const sellerSales = {}; // Stores { sellerId: totalSalesQuantity }
     const uniqueSellerIds = new Set(); // To efficiently get unique seller IDs for the next query
 
-    productSales.forEach(row => {
+    productSales.forEach((row) => {
       const sellerId = row.seller_id;
       // Ensure quantity is parsed as an integer, as COUNT from SQL might return a string.
       const quantity = parseInt(row.total_quantity_sold, 10);
@@ -1856,7 +2054,7 @@ app.get("/api/top-sellers", async (req, res) => {
     );
 
     const sellerDetails = {}; // Stores { sellerId: businessName }
-    sellersQueryResult.rows.forEach(row => {
+    sellersQueryResult.rows.forEach((row) => {
       sellerDetails[row.seller_id] = row.business_name;
     });
 
@@ -1872,35 +2070,35 @@ app.get("/api/top-sellers", async (req, res) => {
 
     // Send the top sellers list as a JSON response.
     res.json({ success: true, topSellers: topSellersList });
-
   } catch (err) {
     // Log the error for debugging purposes on the server.
     console.error("Error fetching top sellers:", err);
     // Send a 500 Internal Server Error response to the client.
-    res.status(500).json({ success: false, message: "Server error while fetching top sellers." });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Server error while fetching top sellers.",
+      });
   }
 });
 
-
-
-
-///filtering products from home page
+///filtering products from home page antor change
 
 app.get("/api/v1/productFilter", async (req, res) => {
   try {
     const {
-      minPrice,
+      minPrice, // NEW: Add minPrice
       maxPrice,
       categories,
       stockStatus,
       ratings,
       search,
-      minDiscount, // Destructure minDiscount
-      maxDiscount, // Destructure maxDiscount
-      sellerIds,   // Destructure sellerIds
-      // We will now ignore sortBy and sortDirection if maxDiscount is present
+      minDiscount, // NEW: Add minDiscount
+      maxDiscount,
+      sellerIds,
       sortBy,
-      sortDirection
+      sortDirection,
     } = req.query;
 
     // Start building the query with better subquery handling
@@ -1933,14 +2131,24 @@ app.get("/api/v1/productFilter", async (req, res) => {
         FROM image
         ORDER BY product_id, image_id
       ) i ON p.product_id = i.product_id
-      ${sellerIds ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id` : ''}
+      ${
+        sellerIds
+          ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id`
+          : ""
+      }
       WHERE 1=1
     `;
 
     const queryParams = [];
     let paramCount = 1;
 
-    // Add price filter with proper type casting
+    // UPDATED: Add price range filter (both min and max)
+    if (minPrice && !isNaN(minPrice)) {
+      query += ` AND s.selling_price >= $${paramCount}`;
+      queryParams.push(Number(minPrice));
+      paramCount++;
+    }
+
     if (maxPrice && !isNaN(maxPrice)) {
       query += ` AND s.selling_price <= $${paramCount}`;
       queryParams.push(Number(maxPrice));
@@ -1949,7 +2157,7 @@ app.get("/api/v1/productFilter", async (req, res) => {
 
     // Add categories filter with proper array handling
     if (categories && categories.length > 0) {
-      const categoryArray = categories.split(',').map(cat => cat.trim());
+      const categoryArray = categories.split(",").map((cat) => cat.trim());
       if (categoryArray.length > 0) {
         query += ` AND c.category_name = ANY($${paramCount})`;
         queryParams.push(categoryArray);
@@ -1959,9 +2167,9 @@ app.get("/api/v1/productFilter", async (req, res) => {
 
     // Add stock status filter
     if (stockStatus) {
-      if (stockStatus === 'inStock') {
+      if (stockStatus === "inStock") {
         query += ` AND s.stock > 0`;
-      } else if (stockStatus === 'outOfStock') {
+      } else if (stockStatus === "outOfStock") {
         query += ` AND s.stock = 0`;
       }
     }
@@ -1979,9 +2187,10 @@ app.get("/api/v1/productFilter", async (req, res) => {
 
     // Add ratings filter with proper number handling
     if (ratings && ratings.length > 0) {
-      const ratingArray = ratings.split(',')
+      const ratingArray = ratings
+        .split(",")
         .map(Number)
-        .filter(r => !isNaN(r) && r >= 0 && r <= 5);
+        .filter((r) => !isNaN(r) && r >= 0 && r <= 5);
 
       if (ratingArray.length > 0) {
         query += ` AND (
@@ -1994,21 +2203,14 @@ app.get("/api/v1/productFilter", async (req, res) => {
       }
     }
 
-    if (minPrice && !isNaN(minPrice)) {
-      query += ` AND s.selling_price >= $${paramCount}`;
-      queryParams.push(Number(minPrice));
-      paramCount++;
-    }
 
-
-    // ✅ Add minDiscount filter
+    // UPDATED: Add discount range filter (both min and max)
     if (minDiscount && !isNaN(minDiscount)) {
       query += ` AND s.discount >= $${paramCount}`;
       queryParams.push(Number(minDiscount));
       paramCount++;
     }
 
-    // Add maxDiscount filter
     if (maxDiscount && !isNaN(maxDiscount)) {
       query += ` AND s.discount <= $${paramCount}`;
       queryParams.push(Number(maxDiscount));
@@ -2017,7 +2219,7 @@ app.get("/api/v1/productFilter", async (req, res) => {
 
     // Add sellerIds filter
     if (sellerIds && sellerIds.length > 0) {
-      const sellerIdArray = sellerIds.split(',').map(id => id.trim());
+      const sellerIdArray = sellerIds.split(",").map((id) => id.trim());
       if (sellerIdArray.length > 0) {
         query += ` AND s.seller_id = ANY($${paramCount})`;
         queryParams.push(sellerIdArray);
@@ -2025,20 +2227,37 @@ app.get("/api/v1/productFilter", async (req, res) => {
       }
     }
 
-    // Force sorting by discount in descending order if maxDiscount is present
+    // UPDATED: Sorting logic - sort by discount if any discount filter is applied
     let orderByClause = ` ORDER BY p.product_id DESC`; // Default sort
 
-    if (maxDiscount && !isNaN(maxDiscount)) {
-      orderByClause = ` ORDER BY s.discount DESC`; // Always sort by discount DESC if maxDiscount is used
-    } else if (sortBy) { // Only apply other sortBy if maxDiscount is NOT used
+    if (
+      (minDiscount && !isNaN(minDiscount)) ||
+      (maxDiscount && !isNaN(maxDiscount))
+    ) {
+      orderByClause = ` ORDER BY s.discount DESC`; // Sort by discount DESC if any discount filter is used
+    } else if (sortBy) {
+      // Only apply other sortBy if discount filters are NOT used
       switch (sortBy) {
-        case 'price':
-          orderByClause = ` ORDER BY s.selling_price ${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
+        case "price":
+          orderByClause = ` ORDER BY s.selling_price ${
+            sortDirection === "asc" ? "ASC" : "DESC"
+          }`;
           break;
-        case 'name':
-          orderByClause = ` ORDER BY p.product_name ${sortDirection === 'asc' ? 'ASC' : 'DESC'}`;
+        case "name":
+          orderByClause = ` ORDER BY p.product_name ${
+            sortDirection === "asc" ? "ASC" : "DESC"
+          }`;
           break;
-        // Add more cases for other sorting options (e.g., 'rating', 'popularity', 'newest')
+        case "rating":
+          orderByClause = ` ORDER BY average_rating ${
+            sortDirection === "asc" ? "ASC" : "DESC"
+          }`;
+          break;
+        case "discount":
+          orderByClause = ` ORDER BY s.discount ${
+            sortDirection === "asc" ? "ASC" : "DESC"
+          }`;
+          break;
         default:
           orderByClause = ` ORDER BY p.product_id DESC`; // Fallback
       }
@@ -2056,31 +2275,32 @@ app.get("/api/v1/productFilter", async (req, res) => {
       count: results.rows.length,
       products: results.rows,
     });
-
   } catch (err) {
-    console.error('Error in product filtering:', err);
+    console.error("Error in product filtering:", err);
     res.status(500).json({
       status: "error",
       message: "Failed to filter products",
-      error: err.message
+      error: err.message,
     });
   }
 });
 
+
+///antor change for seller product filter
 app.get("/api/v1/sellerProductFilter", async (req, res) => {
   try {
     const {
+      minPrice,     // NEW: Add minPrice
       maxPrice,
       categories,
       stockStatus,
       ratings,
       search,
+      minDiscount,  // NEW: Add minDiscount
       maxDiscount,
       sellerId,
-      // filter: sortBy,
     } = req.query;
 
-    //console.log(sortBy);
     // Start building the query
     let query = `
       SELECT
@@ -2135,33 +2355,39 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       });
     }
 
-    // Add price filter
+    // UPDATED: Add price range filter (both min and max)
+    if (minPrice && !isNaN(minPrice) && Number(minPrice) > 0) {
+      query += ` AND s.selling_price >= $${paramCount}`;
+      queryParams.push(Number(minPrice));
+      paramCount++;
+    }
+    
     if (maxPrice && !isNaN(maxPrice) && Number(maxPrice) > 0) {
       query += ` AND s.selling_price <= $${paramCount}`;
       queryParams.push(Number(maxPrice));
       paramCount++;
     }
 
-    // FIX: Categories filter - handle case insensitive matching
+    // Categories filter
     if (categories && categories.length > 0) {
-      const categoryArray = categories.split(',').map(cat => cat.trim());
+      const categoryArray = categories.split(",").map((cat) => cat.trim());
       if (categoryArray.length > 0) {
         query += ` AND LOWER(c.category_name) = ANY($${paramCount})`;
-        queryParams.push(categoryArray.map(cat => cat.toLowerCase()));
+        queryParams.push(categoryArray.map((cat) => cat.toLowerCase()));
         paramCount++;
       }
     }
 
     // Add stock status filter
-    if (stockStatus && stockStatus !== 'all') {
-      if (stockStatus === 'inStock') {
+    if (stockStatus && stockStatus !== "all") {
+      if (stockStatus === "inStock") {
         query += ` AND s.stock > 0`;
-      } else if (stockStatus === 'outOfStock') {
+      } else if (stockStatus === "outOfStock") {
         query += ` AND s.stock = 0`;
       }
     }
 
-    // FIX: Search filter - use separate parameters for each field
+    // Search filter
     if (search && search.trim()) {
       query += ` AND (
         p.product_name ILIKE $${paramCount}
@@ -2172,14 +2398,14 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       paramCount++;
     }
 
-    // FIX: Ratings filter - should be OR condition, not AND
+    // Ratings filter
     if (ratings && ratings.length > 0) {
-      const ratingArray = ratings.split(',')
+      const ratingArray = ratings
+        .split(",")
         .map(Number)
-        .filter(r => !isNaN(r) && r >= 0 && r <= 5);
+        .filter((r) => !isNaN(r) && r >= 0 && r <= 5);
 
       if (ratingArray.length > 0) {
-        // Create OR conditions for each rating
         const ratingConditions = ratingArray.map(() => {
           const condition = `COALESCE(
             (SELECT AVG(r.rating) FROM review r WHERE r.product_id = p.product_id), 0
@@ -2189,40 +2415,30 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
           return condition;
         });
 
-        query += ` AND (${ratingConditions.join(' OR ')})`;
+        query += ` AND (${ratingConditions.join(" OR ")})`;
       }
     }
-    let orderByClause = ` ORDER BY p.product_id DESC`;
-    // Add maxDiscount filter
+
+    // UPDATED: Add discount range filter (both min and max)
+    if (minDiscount && !isNaN(minDiscount) && Number(minDiscount) > 0) {
+      query += ` AND s.discount >= $${paramCount}`;
+      queryParams.push(Number(minDiscount));
+      paramCount++;
+    }
+    
     if (maxDiscount && !isNaN(maxDiscount) && Number(maxDiscount) > 0) {
       query += ` AND s.discount <= $${paramCount}`;
       queryParams.push(Number(maxDiscount));
-
       paramCount++;
-
     }
 
-    // Sorting logic
-
-
-    // switch (sortBy) {
-    //   case 'highest_selling':
-    //     orderByClause = ` ORDER BY total_sales_quantity DESC`;
-    //     break;
-    //   case 'lowest_selling':
-    //     orderByClause = ` ORDER BY total_sales_quantity ASC`;
-    //     break;
-    //   case 'highest_rated':
-    //     orderByClause = ` ORDER BY average_rating DESC`;
-    //     break;
-    //   case 'lowest_rated':
-    //     orderByClause = ` ORDER BY average_rating ASC`;
-    //     break;
-    //   case 'latest':
-    //   default:
-    //     orderByClause = ` ORDER BY p.product_id DESC`;
-    //     break;
-    // }
+    // Default sorting
+    let orderByClause = ` ORDER BY p.product_id DESC`;
+    
+    // Sort by discount if any discount filter is applied
+    if ((minDiscount && !isNaN(minDiscount)) || (maxDiscount && !isNaN(maxDiscount))) {
+      orderByClause = ` ORDER BY s.discount DESC`;
+    }
 
     query += orderByClause;
 
@@ -2231,8 +2447,8 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
 
     const results = await db.query(query, queryParams);
 
-    // FIX: Map database fields to frontend expected format
-    const mappedProducts = results.rows.map(row => ({
+    // Map database fields to frontend expected format
+    const mappedProducts = results.rows.map((row) => ({
       id: row.product_id,
       name: row.product_name,
       details: row.product_details,
@@ -2246,7 +2462,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       images: row.image_url ? [row.image_url] : [],
       average_rating: row.average_rating,
       total_sales: row.total_sales_quantity,
-      status: row.stock > 0 ? "Active" : "Out of Stock"
+      status: row.stock > 0 ? "Active" : "Out of Stock",
     }));
 
     res.json({
@@ -2254,13 +2470,12 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       count: mappedProducts.length,
       products: mappedProducts,
     });
-
   } catch (err) {
-    console.error('Error in product filtering:', err);
+    console.error("Error in product filtering:", err);
     res.status(500).json({
       status: "error",
       message: "Failed to filter products",
-      error: err.message
+      error: err.message,
     });
   }
 });
@@ -2338,7 +2553,6 @@ app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'
   }
 });
 
-
 // fetch all orders for seller
 // Add this new endpoint to your server.js file
 
@@ -2397,15 +2611,222 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
     // console.log(`Fetched ${ordersThisMonth} orders this month for seller ${sellerId}.`);
 
   } catch (err) {
-    console.error('Error fetching orders this month:', err);
+    console.error("Error fetching orders this month:", err);
     res.status(500).json({
       status: "error",
       message: "Failed to fetch orders this month",
-      error: err.message
+      error: err.message,
     });
   }
 });
 
+
+// product sections fetching antor change
+// Endpoint for Popular Products
+// Fetches products that have been bought most frequently in the last month.
+app.get('/api/v1/popular',  async (req, res) => {
+    try {
+        // customerId is not directly used in this query, but isAuthenticated ensures user is logged in if needed for context
+        // const customerId = req.user.id; 
+
+        const query = `
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.short_des,
+                COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
+                COUNT(oi.product_id) AS purchase_count,
+                -- Use MAX for seller details since products might have multiple sell entries
+                COALESCE(MAX(s.business_name), 'N/A') AS seller_name,
+                COALESCE(MAX(sl.selling_price), 0) AS selling_price,
+                COALESCE(MAX(sl.actual_price), 0) AS actual_price,
+                COALESCE(MAX(sl.discount), 0) AS discount
+            FROM
+                customer_order co
+            JOIN
+                order_item oi ON co.order_id = oi.order_id
+            JOIN
+                product p ON oi.product_id = p.product_id
+            LEFT JOIN
+                image i ON p.product_id = i.product_id
+            LEFT JOIN
+                sell sl ON p.product_id = sl.product_id
+            LEFT JOIN
+                seller s ON sl.seller_id = s.seller_id
+            WHERE
+                -- Filter for purchases within the last month and successful payments
+                co.date >= NOW() - INTERVAL '1 month'
+                AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+            GROUP BY
+                p.product_id, p.product_name, p.short_des
+            ORDER BY
+                purchase_count DESC
+            LIMIT 30;
+        `;
+
+        const result = await db.query(query);
+        res.status(200).json({ products: result.rows });
+
+    } catch (error) {
+        console.error("Error fetching popular products:", error);
+        res.status(500).json({ message: "Failed to fetch popular products." });
+    }
+});
+
+// Endpoint for Newest Arrivals
+// Fetches products that have been uploaded most recently.
+app.get('/api/v1/newest',  async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.short_des,
+                COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
+                sl.sell_date, -- Assuming 'created_at' column exists for upload time
+                COALESCE(MAX(sl.selling_price), 0) AS selling_price,
+                COALESCE(MAX(sl.actual_price), 0) AS actual_price,
+                COALESCE(MAX(sl.discount), 0) AS discount
+            FROM
+                product p
+            LEFT JOIN
+                image i ON p.product_id = i.product_id
+            LEFT JOIN
+                sell sl ON p.product_id = sl.product_id
+            GROUP BY
+                p.product_id, p.product_name, p.short_des, sl.sell_date -- Group by all non-aggregated columns
+            ORDER BY
+               sl.sell_date DESC
+            LIMIT 30;
+        `;
+
+        const result = await db.query(query);
+        res.status(200).json({ products: result.rows });
+
+    } catch (error) {
+        console.error("Error fetching newest arrivals:", error);
+        res.status(500).json({ message: "Failed to fetch newest arrivals." });
+    }
+});
+
+// Endpoint for Recommended Products
+// Fetches products in categories previously bought or wishlisted by the customer (if authenticated),
+// or popular products (if unauthenticated).
+app.get('/api/v1/recommended', async (req, res) => {
+    try {
+        let query;
+        let queryParams = [];
+
+        // Check if the user is authenticated (isAuthenticated middleware has already run)
+        // req.user will be populated if isAuthenticated was successful.
+        if (req.user && req.user.id) {
+            const customerId = req.user.id;
+            queryParams.push(customerId);
+
+            // Personalized Recommendation Query (for authenticated users)
+            query = `
+                WITH UserInterestedCategories AS (
+                    -- Get categories from previously bought products
+                    SELECT DISTINCT p.category_id
+                    FROM customer_order co
+                    JOIN order_item oi ON co.order_id = oi.order_id
+                    JOIN product p ON oi.product_id = p.product_id
+                    WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+
+                    UNION
+
+                    -- Get categories from products in wishlist
+                    SELECT DISTINCT p.category_id
+                    FROM wish_item wi
+                    JOIN customer c ON wi.wishlist_id = c.wishlist_id
+                    JOIN product p ON wi.product_id = p.product_id
+                    WHERE c.customer_id = $1
+                ),
+                UserKnownProducts AS (
+                    -- Get all product IDs the user has already bought
+                    SELECT DISTINCT oi.product_id
+                    FROM customer_order co
+                    JOIN order_item oi ON co.order_id = oi.order_id
+                    WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+
+                    UNION
+
+                    -- Get all product IDs the user has in their wishlist
+                    SELECT DISTINCT wi.product_id
+                    FROM wish_item wi
+                    JOIN customer c ON wi.wishlist_id = c.wishlist_id
+                    WHERE c.customer_id = $1
+                )
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.short_des,
+                    COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
+                    COALESCE(MAX(sl.selling_price), 0) AS selling_price,
+                    COALESCE(MAX(sl.actual_price), 0) AS actual_price,
+                    COALESCE(MAX(sl.discount), 0) AS discount
+                FROM
+                    product p
+                LEFT JOIN
+                    image i ON p.product_id = i.product_id
+                LEFT JOIN
+                    sell sl ON p.product_id = sl.product_id
+                WHERE
+                    p.category_id IN (SELECT category_id FROM UserInterestedCategories WHERE category_id IS NOT NULL)
+                    AND p.product_id NOT IN (SELECT product_id FROM UserKnownProducts)
+                GROUP BY
+                    p.product_id, p.product_name, p.short_des
+                ORDER BY
+                    sl.sell_date DESC -- Prioritize more recently added products within recommended categories
+                LIMIT 30;
+            `;
+            // The customerId needs to be passed for each subquery where it's used.
+            // For the current structure with CTEs, $1 will be repeated.
+            queryParams = [customerId, customerId, customerId, customerId]; 
+
+        } else {
+            // Popular Products Query (for unauthenticated users)
+            query = `
+                SELECT
+                    p.product_id,
+                    p.product_name,
+                    p.short_des,
+                    COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
+                    COUNT(oi.product_id) AS purchase_count,
+                    COALESCE(MAX(sl.selling_price), 0) AS selling_price,
+                    COALESCE(MAX(sl.actual_price), 0) AS actual_price,
+                    COALESCE(MAX(sl.discount), 0) AS discount
+                FROM
+                    customer_order co
+                JOIN
+                    order_item oi ON co.order_id = oi.order_id
+                JOIN
+                    product p ON oi.product_id = p.product_id
+                LEFT JOIN
+                    image i ON p.product_id = i.product_id
+                LEFT JOIN
+                    sell sl ON p.product_id = sl.product_id
+                WHERE
+                    co.date >= NOW() - INTERVAL '1 month'
+                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                GROUP BY
+                    p.product_id, p.product_name, p.short_des
+                ORDER BY
+                    purchase_count DESC
+                LIMIT 30;
+            `;
+            // No specific customerId param needed for this query
+            queryParams = []; 
+        }
+
+        const result = await db.query(query, queryParams);
+        res.status(200).json({ products: result.rows });
+
+    } catch (error) {
+        console.error("Error fetching recommended products:", error);
+        res.status(500).json({ message: "Failed to fetch recommended products." });
+    }
+});
 
 
 
