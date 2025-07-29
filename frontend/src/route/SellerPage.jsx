@@ -32,17 +32,21 @@ const SellerDashboard = () => {
   // for search bar
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 9; // or whatever number fits your layout
+  ///antor change
 
-    const [showSidebar, setShowSidebar] = useState(false);
-    
-    // State to manage expanded sections
-      const [priceRange, setPriceRange] = useState({ min: "", max: "" });
-      const [selectedCategories, setSelectedCategories] = useState([]);
-      const [selectedRatings, setSelectedRatings] = useState([]);
-      const [stockStatus, setStockStatus] = useState("all");
-      const [search, setSearch] = useState("");
-      const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
-      const [filteredProducts, setFilteredProducts] = useState([]);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const [discountRange, setDiscountRange] = useState({ min: 0, max: 100 });
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  // State to manage expanded sections
+  //const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedRatings, setSelectedRatings] = useState([]);
+  const [stockStatus, setStockStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  //const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
 
   // const filteredProducts = products.filter((product) =>
   //   product.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -50,15 +54,14 @@ const SellerDashboard = () => {
 
   // Sample products data
 
-
-    const [expandedSections, setExpandedSections] = useState({
-      priceRange: false,
-      categories: false,
-      stockStatus: false,
-      discountRange: false,
-      ratings: false,
-      //topSellers: false, // Changed to true to expand Top Sellers on load
-    });
+  const [expandedSections, setExpandedSections] = useState({
+    priceRange: false,
+    categories: false,
+    stockStatus: false,
+    discountRange: false,
+    ratings: false,
+    //topSellers: false, // Changed to true to expand Top Sellers on load
+  });
 
   // Form state for adding new product
   const [newProduct, setNewProduct] = useState({
@@ -75,156 +78,168 @@ const SellerDashboard = () => {
   });
 
   const categories = [
-  "Electronics",
-  "Clothing", 
-  "Books",
-  "Home & Kitchen", // Make sure this matches your database
-  "Beauty",
-  "Furniture",
-  "Toys",
-  "Sports",
-  "Grocery",
-  // Add other categories that exist in your database
-];
-    const toggleSection = (section) => {
+    "Electronics",
+    "Clothing",
+    "Books",
+    "Home & Kitchen", // Make sure this matches your database
+    "Beauty",
+    "Furniture",
+    "Toys",
+    "Sports",
+    "Grocery",
+    // Add other categories that exist in your database
+  ];
+  const toggleSection = (section) => {
     setExpandedSections((prev) => ({
       ...prev,
       [section]: !prev[section],
     }));
   };
 
+  //antor change
+  useEffect(() => {
+    if (!showSidebar) {
+      setFilteredProducts(allProducts);
+    }
+  }, [showSidebar]);
+
   // 1. Fix the fetchSellerProducts function:
-const fetchSellerProducts = async () => {
-  try {
-    const response = await axios.get(
-      "http://localhost:4000/SellerPage/products",
-      {
-        withCredentials: true,
-      }
-    );
-    if (response.data.status === "success") {
-      const fetchedProducts = response.data.products.map((p) => ({
-        ...p,
-        images: p.images || [],
-        status: p.stock > 0 ? "Active" : "Out of Stock",
-      }));
-      setProducts(fetchedProducts);
-      setFilteredProducts(fetchedProducts); // Set to seller's products, not all products
-      console.log("Fetched seller products:", fetchedProducts);
-    } else {
-      console.error(
-        "Failed to fetch seller products:",
-        response.data.message
+  const fetchSellerProducts = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:4000/SellerPage/products",
+        {
+          withCredentials: true,
+        }
       );
+      if (response.data.status === "success") {
+        const fetchedProducts = response.data.products.map((p) => ({
+          ...p,
+          images: p.images || [],
+          status: p.stock > 0 ? "Active" : "Out of Stock",
+        }));
+        setProducts(fetchedProducts);
+        setAllProducts(fetchedProducts);
+        setFilteredProducts(fetchedProducts); // Set to seller's products, not all products
+        console.log("Fetched seller products:", fetchedProducts);
+      } else {
+        console.error(
+          "Failed to fetch seller products:",
+          response.data.message
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching seller products:", error);
     }
-  } catch (error) {
-    console.error("Error fetching seller products:", error);
-  }
-};
+  };
 
-// useEffect(() => {
-//   if (sellerId) {
-//     applyFiltersToBackend();
-//   }
-// }, [sellerId]);
+  // useEffect(() => {
+  //   if (sellerId) {
+  //     applyFiltersToBackend();
+  //   }
+  // }, [sellerId]);
 
-// Add this useEffect to apply filters automatically when filter values change
-// useEffect(() => {
-//   if (sellerId) {
-//     const timeoutId = setTimeout(() => {
-//       applyFiltersToBackend();
-//     }, 500); // Debounce for 500ms
-    
-//     return () => clearTimeout(timeoutId);
-//   }
-// }, [priceRange, selectedCategories, stockStatus, selectedRatings, search, discountRange, sellerId]);
+  // Add this useEffect to apply filters automatically when filter values change
+  // useEffect(() => {
+  //   if (sellerId) {
+  //     const timeoutId = setTimeout(() => {
+  //       applyFiltersToBackend();
+  //     }, 500); // Debounce for 500ms
 
+  //     return () => clearTimeout(timeoutId);
+  //   }
+  // }, [priceRange, selectedCategories, stockStatus, selectedRatings, search, discountRange, sellerId]);
 
- // Add these state variables at the top of your component (where other useState declarations are)
-// const [sortBy, setSortBy] = useState('');
-// const [sortDirection, setSortDirection] = useState('desc');
-// Fixed applyFiltersToBackend function
-const applyFiltersToBackend = async () => {
-  try {
-    const queryParams = new URLSearchParams();
+  // Add these state variables at the top of your component (where other useState declarations are)
+  // const [sortBy, setSortBy] = useState('');
+  // const [sortDirection, setSortDirection] = useState('desc');
+  // Fixed applyFiltersToBackend function
 
-    // IMPORTANT: Always add seller ID first
-    if (sellerId) {
-      queryParams.append("sellerId", sellerId);
-      console.log("Adding seller ID to filters:", sellerId);
-    } else {
-      console.error("Seller ID is required");
-      return;
+  //antor change
+  const applyFiltersToBackend = async () => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      // IMPORTANT: Always add seller ID first
+      if (sellerId) {
+        queryParams.append("sellerId", sellerId);
+        console.log("Adding seller ID to filters:", sellerId);
+      } else {
+        console.error("Seller ID is required");
+        return;
+      }
+
+      // Updated: Add both min and max price filters
+      if (priceRange.min > 0) {
+        queryParams.append("minPrice", priceRange.min);
+      }
+      if (priceRange.max < 100000) {
+        queryParams.append("maxPrice", priceRange.max);
+      }
+
+      if (selectedCategories.length > 0) {
+        queryParams.append("categories", selectedCategories.join(","));
+      }
+
+      if (stockStatus && stockStatus !== "all") {
+        queryParams.append("stockStatus", stockStatus);
+      }
+
+      if (selectedRatings.length > 0) {
+        queryParams.append("ratings", selectedRatings.join(","));
+      }
+
+      if (search && search.trim()) {
+        queryParams.append("search", search.trim());
+      }
+
+      // Updated: Add both min and max discount filters
+      if (discountRange.min > 0) {
+        queryParams.append("minDiscount", discountRange.min);
+      }
+      if (discountRange.max < 100) {
+        queryParams.append("maxDiscount", discountRange.max);
+      }
+
+      const filterUrl = `http://localhost:4000/api/v1/sellerProductFilter?${queryParams.toString()}`;
+      console.log("Filter URL:", filterUrl);
+
+      const response = await axios.get(filterUrl);
+
+      console.log("Filter response:", response.data);
+
+      if (response.data.status === "success") {
+        setFilteredProducts(response.data.products);
+        console.log("Filtered products set:", response.data.products);
+      } else {
+        console.error("Filter failed:", response.data.message);
+      }
+    } catch (error) {
+      console.error("Error applying filters:", error);
+      if (error.response?.data?.message) {
+        console.error("Server error:", error.response.data.message);
+      }
     }
+  };
 
-    // FIX: Only add filters if they have meaningful values
-    if (priceRange.max && priceRange.max > 0) {
-      queryParams.append("maxPrice", priceRange.max);
-    }
-    
-    if (selectedCategories.length > 0) {
-      queryParams.append("categories", selectedCategories.join(","));
-    }
-    
-    if (stockStatus && stockStatus !== "all") {
-      queryParams.append("stockStatus", stockStatus);
-    }
-    
-    if (selectedRatings.length > 0) {
-      queryParams.append("ratings", selectedRatings.join(","));
-    }
-    
-    // FIX: Use the correct search state
-    if (search && search.trim()) {
-      queryParams.append("search", search.trim());
-    }
-    
-    if (discountRange.max && discountRange.max > 0) {
-      queryParams.append("maxDiscount", discountRange.max);
-    }
-
-    const filterUrl = `http://localhost:4000/api/v1/sellerProductFilter?${queryParams.toString()}`;
-    console.log("Filter URL:", filterUrl);
-    
-    const response = await axios.get(filterUrl);
-
-    console.log("Filter response:", response.data);
-    
-    if (response.data.status === "success") {
-      setFilteredProducts(response.data.products);
-      console.log("Filtered products set:", response.data.products);
-    } else {
-      console.error("Filter failed:", response.data.message);
-    }
-    
-  } catch (error) {
-    console.error("Error applying filters:", error);
-    if (error.response?.data?.message) {
-      console.error("Server error:", error.response.data.message);
-    }
-  }
-};
-
-   // 2. Update the clearFilters function:
-const clearFilters = () => {
-  setPriceRange({ min: "", max: "" });
-  setSelectedCategories([]);
-  setSelectedRatings([]);
-  setStockStatus("all");
-  setSearch(""); // Clear search
-  setDiscountRange({ min: 0, max: 0 });
-  setExpandedSections({
-    discountRange: false,
-    priceRange: false,
-    categories: false,
-    stockStatus: false,
-    ratings: false,
-  });
-  // Reset to original products
-  setFilteredProducts(products);
-};
-
-
+  // 2. Update the clearFilters function: antor change
+  const clearFilters = () => {
+    setPriceRange({ min: 0, max: 100000 });
+    setSelectedCategories([]);
+    setSelectedRatings([]);
+    setStockStatus("all");
+    setSearch("");
+    setDiscountRange({ min: 0, max: 100 });
+    setExpandedSections({
+      discountRange: false,
+      priceRange: false,
+      categories: false,
+      stockStatus: false,
+      ratings: false,
+    });
+    // Reset to original products
+    setFilteredProducts(products);
+  };
 
   useEffect(() => {
     const checkAuthSeller = async () => {
@@ -266,32 +281,40 @@ const clearFilters = () => {
 
   useEffect(() => {
     const fetchOrdersThisMonth = async () => {
-    if (!sellerId) {
-      console.log("Seller ID not available, skipping orders this month fetch.");
-      return;
-    }
-    try {
-      const response = await axios.get(
-        `http://localhost:4000/api/v1/sellerStats/ordersThisMonth?sellerId=${sellerId}`,
-        {
-          withCredentials: true,
+      if (!sellerId) {
+        console.log(
+          "Seller ID not available, skipping orders this month fetch."
+        );
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `http://localhost:4000/api/v1/sellerStats/ordersThisMonth?sellerId=${sellerId}`,
+          {
+            withCredentials: true,
+          }
+        );
+        if (response.data.status === "success") {
+          setOrdersThisMonth(response.data.ordersThisMonth);
+          console.log(
+            "Fetched orders this month:",
+            response.data.ordersThisMonth
+          );
+        } else {
+          console.error(
+            "Failed to fetch orders this month:",
+            response.data.message
+          );
         }
-      );
-      if (response.data.status === "success") {
-        setOrdersThisMonth(response.data.ordersThisMonth);
-        console.log("Fetched orders this month:", response.data.ordersThisMonth);
-      } else {
-        console.error("Failed to fetch orders this month:", response.data.message);
+      } catch (error) {
+        console.error("Error fetching orders this month:", error);
+        if (error.response?.data?.message) {
+          console.error("Server error message:", error.response.data.message);
+        }
       }
-    } catch (error) {
-      console.error("Error fetching orders this month:", error);
-      if (error.response?.data?.message) {
-        console.error("Server error message:", error.response.data.message);
-      }
-    }
-  };
+    };
 
-  fetchOrdersThisMonth();
+    fetchOrdersThisMonth();
   }, [sellerId]);
 
   const handleImageUpload = (e) => {
@@ -332,7 +355,6 @@ const clearFilters = () => {
   };
 
   const editProduct = (product) => {
-
     setNewProduct({
       name: product.name,
       category: product.category,
@@ -383,7 +405,6 @@ const clearFilters = () => {
       alert("You can upload a maximum of 4 images and minimum 1 images.");
       return;
     }
-
 
     // ✅ Append new image files only
     newFiles.forEach((file) => {
@@ -515,20 +536,17 @@ const clearFilters = () => {
           >
             {/* Changed class name */}
             <Eye className="btnIcon" />
-            
           </button>
           <button className="btn btnEdit" onClick={() => editProduct(product)}>
             {" "}
             {/* Changed class name */}
             <Edit className="btnIcon" />
-            
           </button>
           <button
             onClick={() => deleteProduct(product.id)}
             className="btn btnDanger"
           >
             <Trash2 className="btnIcon" />
-            
           </button>
         </div>
       </div>
@@ -544,17 +562,26 @@ const clearFilters = () => {
       {/* Header */}
       <header className="dashboardHeader">
         <div className="navbar">
-          <div className="nav-item menu-item"
-            onClick={() => setShowSidebar(!showSidebar)} >  
-            <span className="icon_filter">☰</span>
+          <div
+            className="nav-item menu-item"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            <span className="filter-menu">Filter Products</span>
           </div>
-          
+
           <div>
             <h1 className="headerTitle">{sellerName.toUpperCase()}</h1>
-            
           </div>
 
           <div className="headerActions">
+            <button
+              onClick={() => setShowAddProduct(true)}
+              className="btn btnPrimary"
+            >
+              <Plus className="btnIcon" />
+              Add Product
+            </button>
+
             <button
               onClick={() => navigate("/SellerProfilePage")}
               className="btn btnSecondary"
@@ -567,14 +594,6 @@ const clearFilters = () => {
               <X className="btnIcon" />
               Logout
             </button>
-
-            <button
-              onClick={() => setShowAddProduct(true)}
-              className="btn btnPrimary"
-            >
-              <Plus className="btnIcon" />
-              Add Product
-            </button>
           </div>
         </div>
       </header>
@@ -583,383 +602,447 @@ const clearFilters = () => {
       <div className="mainContainer">
         {/* Stats Cards */}
         {!showSidebar && (
-        <div className="statsGrid">
-          <div className="statCard">
-            <div className="statContent">
-              <Package className="statIcon blue" />
-              <div>
-                <p className="statLabel">Total Products</p>
-                <p className="statValue">{products.length}</p>
+          <div className="statsGrid">
+            <div className="statCard">
+              <div className="statContent">
+                <Package className="statIcon blue" />
+                <div>
+                  <p className="statLabel">Total Products</p>
+                  <p className="statValue">{products.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="statCard">
+              <div
+                className="statContent"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/SellerPage/SellerSellingHistoryPage")}
+              >
+                <div>
+                  <p className="statValue">History</p>
+                </div>
+              </div>
+            </div>
+            <div className="statCard">
+              <div className="statContent">
+                <Star className="statIcon yellow" />
+                <div>
+                  <p className="statLabel">Average Rating</p>
+                  <p className="statValue">4.8</p>
+                </div>
+              </div>
+            </div>
+            <div className="statCard">
+              <div className="statContent">
+                <TrendingUp className="statIcon purple" />
+                <div>
+                  <p className="statLabel">Orders This Month</p>
+                  <p className="statValue">{ordersThisMonth}</p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="statCard">
-            <div className="statContent" style={{cursor:"pointer"}} onClick={() => navigate("/SellerPage/SellerSellingHistoryPage")}>
-              
-              <div>
-                <p className="statValue" >History</p>
-                
-              </div>
-            </div>
-          </div>
-          <div className="statCard">
-            <div className="statContent">
-              <Star className="statIcon yellow" />
-              <div>
-                <p className="statLabel">Average Rating</p>
-                <p className="statValue">4.8</p>
-              </div>
-            </div>
-          </div>
-          <div className="statCard">
-            <div className="statContent">
-              <TrendingUp className="statIcon purple" />
-              <div>
-                <p className="statLabel">Orders This Month</p>
-                <p className="statValue">{ordersThisMonth}</p>
-              </div>
-            </div>
-          </div>
-        </div>
         )}
 
         {/* Products Section */}
 
         <div className="homePageLayout">
-        {/* Sidebar - only show when showSidebar is true */}
-        {showSidebar && (
-          <div className="permanent-sidebar">
-            <div className="filter-section">
-              <h4>Filter Products</h4>
-              {/* Discount Percentage Filter */}
-              <div className="filter-group">
-                <div
-                  className="filter-header"
-                  onClick={() => toggleSection("discountRange")}
-                >
-                  <h5>Discount Percentage</h5>
-                  <span
-                    className={`arrow ${
-                      expandedSections.discountRange ? "expanded" : ""
-                    }`}
+          {/* Sidebar - only show when showSidebar is true */}
+
+          {showSidebar && (
+            <div className="permanent-sidebar">
+              <div className="filter-section">
+                <h4>Filter Products</h4>
+                {/* Discount Percentage Filter antor change*/}
+                <div className="filter-group">
+                  <div
+                    className="filter-header"
+                    onClick={() => toggleSection("discountRange")}
                   >
-                    ▼
-                  </span>
-                </div>
-                {expandedSections.discountRange && (
-                  <div className="discount-filter-content">
-                    <div className="discount-input-row">
-                      <div className="discount-field">
+                    <h5>Discount Percentage</h5>
+                    <span
+                      className={`arrow ${
+                        expandedSections.discountRange ? "expanded" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </div>
+                  {expandedSections.discountRange && (
+                    <div className="discount-filter-content">
+                      <div className="discount-input-row">
+                        <div className="discount-field">
+                          <input
+                            type="number"
+                            placeholder="Min Discount (%)"
+                            value={
+                              discountRange.min === 0 ? "" : discountRange.min
+                            }
+                            onChange={(e) =>
+                              setDiscountRange((prev) => ({
+                                ...prev,
+                                min: e.target.value
+                                  ? Number(e.target.value)
+                                  : 0,
+                              }))
+                            }
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <div className="discount-field">
+                          <input
+                            type="number"
+                            placeholder="Max Discount (%)"
+                            value={
+                              discountRange.max === 100 ? "" : discountRange.max
+                            }
+                            onChange={(e) =>
+                              setDiscountRange((prev) => ({
+                                ...prev,
+                                max: e.target.value
+                                  ? Number(e.target.value)
+                                  : 100,
+                              }))
+                            }
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                      </div>
+                      <div className="dual-range-slider">
                         <input
-                          type="number"
-                          placeholder="Maximum Discount (%)"
-                          value={discountRange.max === 0 ? "" : discountRange.max}
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={discountRange.min}
                           onChange={(e) =>
                             setDiscountRange((prev) => ({
                               ...prev,
-                              max: e.target.value ? Number(e.target.value) : 0,
+                              min: Math.min(Number(e.target.value), prev.max),
                             }))
                           }
+                          className="range-slider range-min"
+                        />
+                        <input
+                          type="range"
                           min="0"
                           max="100"
+                          value={discountRange.max}
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              max: Math.max(Number(e.target.value), prev.min),
+                            }))
+                          }
+                          className="range-slider range-max"
                         />
                       </div>
-                    </div>
-                    <div className="discount-slider">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={discountRange.max || 0}
-                        onChange={(e) =>
-                          setDiscountRange((prev) => ({
-                            ...prev,
-                            max: Number(e.target.value),
-                          }))
-                        }
-                        className="single-slider"
-                      />
-                    </div>
-                    {discountRange.max > 0 && (
                       <div className="discount-range-text">
-                        0% - {discountRange.max}%
+                        {discountRange.min}% - {discountRange.max}%
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Price Range Filter */}
-              <div className="filter-group">
-                <div
-                  className="filter-header"
-                  onClick={() => toggleSection("priceRange")}
-                >
-                  <h5>Price Range</h5>
-                  <span
-                    className={`arrow ${
-                      expandedSections.priceRange ? "expanded" : ""
-                    }`}
-                  >
-                    ▼
-                  </span>
+                    </div>
+                  )}
                 </div>
-                {expandedSections.priceRange && (
-                  <div className="price-filter-content">
-                    <div className="price-input-row">
-                      <div className="price-field">
+
+                <div className="filter-group">
+                  <div
+                    className="filter-header"
+                    onClick={() => toggleSection("priceRange")}
+                  >
+                    <h5>Price Range</h5>
+                    <span
+                      className={`arrow ${
+                        expandedSections.priceRange ? "expanded" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </div>
+                  {expandedSections.priceRange && (
+                    <div className="price-filter-content">
+                      <div className="price-input-row">
+                        <div className="price-field">
+                          <input
+                            type="number"
+                            placeholder="Min Price"
+                            value={priceRange.min === 0 ? "" : priceRange.min}
+                            onChange={(e) =>
+                              setPriceRange((prev) => ({
+                                ...prev,
+                                min: e.target.value
+                                  ? Number(e.target.value)
+                                  : 0,
+                              }))
+                            }
+                            min="0"
+                          />
+                        </div>
+                        <div className="price-field">
+                          <input
+                            type="number"
+                            placeholder="Max Price"
+                            value={
+                              priceRange.max === 100000 ? "" : priceRange.max
+                            }
+                            onChange={(e) =>
+                              setPriceRange((prev) => ({
+                                ...prev,
+                                max: e.target.value
+                                  ? Number(e.target.value)
+                                  : 100000,
+                              }))
+                            }
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="dual-range-slider">
                         <input
-                          type="number"
-                          placeholder="Maximum Price"
-                          value={priceRange.max === 0 ? "" : priceRange.max}
+                          type="range"
+                          min="0"
+                          max="100000"
+                          value={priceRange.min}
                           onChange={(e) =>
                             setPriceRange((prev) => ({
                               ...prev,
-                              max: e.target.value ? Number(e.target.value) : 0,
+                              min: Math.min(Number(e.target.value), prev.max),
                             }))
                           }
+                          className="range-slider range-min"
+                        />
+                        <input
+                          type="range"
                           min="0"
+                          max="100000"
+                          value={priceRange.max}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: Math.max(Number(e.target.value), prev.min),
+                            }))
+                          }
+                          className="range-slider range-max"
                         />
                       </div>
+                      <div className="price-range-text">
+                        ৳{priceRange.min} - ৳{priceRange.max}
+                      </div>
                     </div>
-                    <div className="price-slider">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100000"
-                        value={priceRange.max || 0}
-                        onChange={(e) =>
-                          setPriceRange((prev) => ({
-                            ...prev,
-                            max: Number(e.target.value),
-                          }))
-                        }
-                        className="single-slider"
-                      />
+                  )}
+                </div>
+
+                {/* Category Filter */}
+                <div className="filter-group">
+                  <div
+                    className="filter-header"
+                    onClick={() => toggleSection("categories")}
+                  >
+                    <h5>Categories</h5>
+                    <span
+                      className={`arrow ${
+                        expandedSections.categories ? "expanded" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </div>
+                  {expandedSections.categories && (
+                    <div className="checkbox-group">
+                      {[
+                        "Electronics",
+                        "Clothing",
+                        "Books",
+                        "Home & Kitchen",
+                        "Beauty",
+                        "Furniture",
+                        "Toys",
+                        "Sports",
+                        "Grocery",
+                      ].map((category) => (
+                        <label key={category} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.includes(category)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCategories((prev) => [
+                                  ...prev,
+                                  category,
+                                ]);
+                              } else {
+                                setSelectedCategories((prev) =>
+                                  prev.filter((cat) => cat !== category)
+                                );
+                              }
+                            }}
+                          />
+                          {category}
+                        </label>
+                      ))}
                     </div>
-                    {priceRange.max > 0 && (
-                      <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              {/* Category Filter */}
-              <div className="filter-group">
-                <div
-                  className="filter-header"
-                  onClick={() => toggleSection("categories")}
-                >
-                  <h5>Categories</h5>
-                  <span
-                    className={`arrow ${
-                      expandedSections.categories ? "expanded" : ""
-                    }`}
+                {/* Stock Status Filter */}
+                <div className="filter-group">
+                  <div
+                    className="filter-header"
+                    onClick={() => toggleSection("stockStatus")}
                   >
-                    ▼
-                  </span>
-                </div>
-                {expandedSections.categories && (
-                  <div className="checkbox-group">
-                    {[
-                      "Electronics",
-                      "Clothing",
-                      "Books",
-                      "Home & Kitchen",
-                      "Beauty",
-                      "Furniture",
-                      "Toys",
-                      "Sports",
-                      "Grocery",
-                    ].map((category) => (
-                      <label key={category} className="checkbox-label">
+                    <h5>Stock Status</h5>
+                    <span
+                      className={`arrow ${
+                        expandedSections.stockStatus ? "expanded" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </div>
+                  {expandedSections.stockStatus && (
+                    <div className="radio-group">
+                      <label className="radio-label">
                         <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(category)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCategories((prev) => [
-                                ...prev,
-                                category,
-                              ]);
-                            } else {
-                              setSelectedCategories((prev) =>
-                                prev.filter((cat) => cat !== category)
-                              );
-                            }
-                          }}
+                          type="radio"
+                          name="stockStatus"
+                          value="all"
+                          checked={stockStatus === "all"}
+                          onChange={(e) => setStockStatus(e.target.value)}
                         />
-                        {category}
+                        All Items
                       </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Stock Status Filter */}
-              <div className="filter-group">
-                <div
-                  className="filter-header"
-                  onClick={() => toggleSection("stockStatus")}
-                >
-                  <h5>Stock Status</h5>
-                  <span
-                    className={`arrow ${
-                      expandedSections.stockStatus ? "expanded" : ""
-                    }`}
-                  >
-                    ▼
-                  </span>
-                </div>
-                {expandedSections.stockStatus && (
-                  <div className="radio-group">
-                    <label className="radio-label">
-                      <input
-                        type="radio"
-                        name="stockStatus"
-                        value="all"
-                        checked={stockStatus === "all"}
-                        onChange={(e) => setStockStatus(e.target.value)}
-                      />
-                      All Items
-                    </label>
-                    <label className="radio-label">
-                      <input
-                        type="radio"
-                        name="stockStatus"
-                        value="inStock"
-                        checked={stockStatus === "inStock"}
-                        onChange={(e) => setStockStatus(e.target.value)}
-                      />
-                      In Stock
-                    </label>
-                    <label className="radio-label">
-                      <input
-                        type="radio"
-                        name="stockStatus"
-                        value="outOfStock"
-                        checked={stockStatus === "outOfStock"}
-                        onChange={(e) => setStockStatus(e.target.value)}
-                      />
-                      Out of Stock
-                    </label>
-                  </div>
-                )}
-              </div>
-              {/* Ratings Filter */}
-              <div className="filter-group">
-                <div
-                  className="filter-header"
-                  onClick={() => toggleSection("ratings")}
-                >
-                  <h5>Ratings</h5>
-                  <span
-                    className={`arrow ${
-                      expandedSections.ratings ? "expanded" : ""
-                    }`}
-                  >
-                    ▼
-                  </span>
-                </div>
-                {expandedSections.ratings && (
-                  <div className="checkbox-group">
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <label key={rating} className="checkbox-label">
+                      <label className="radio-label">
                         <input
-                          type="checkbox"
-                          checked={selectedRatings.includes(rating)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRatings((prev) => [...prev, rating]);
-                            } else {
-                              setSelectedRatings((prev) =>
-                                prev.filter((r) => r !== rating)
-                              );
-                            }
-                          }}
+                          type="radio"
+                          name="stockStatus"
+                          value="inStock"
+                          checked={stockStatus === "inStock"}
+                          onChange={(e) => setStockStatus(e.target.value)}
                         />
-                        {rating} Stars & Up
+                        In Stock
                       </label>
-                    ))}
+                      <label className="radio-label">
+                        <input
+                          type="radio"
+                          name="stockStatus"
+                          value="outOfStock"
+                          checked={stockStatus === "outOfStock"}
+                          onChange={(e) => setStockStatus(e.target.value)}
+                        />
+                        Out of Stock
+                      </label>
+                    </div>
+                  )}
+                </div>
+                {/* Ratings Filter */}
+                <div className="filter-group">
+                  <div
+                    className="filter-header"
+                    onClick={() => toggleSection("ratings")}
+                  >
+                    <h5>Ratings</h5>
+                    <span
+                      className={`arrow ${
+                        expandedSections.ratings ? "expanded" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
                   </div>
-                )}
+                  {expandedSections.ratings && (
+                    <div className="checkbox-group">
+                      {[5, 4, 3, 2, 1].map((rating) => (
+                        <label key={rating} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={selectedRatings.includes(rating)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRatings((prev) => [...prev, rating]);
+                              } else {
+                                setSelectedRatings((prev) =>
+                                  prev.filter((r) => r !== rating)
+                                );
+                              }
+                            }}
+                          />
+                          {rating} Stars & Up
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Apply and Clear Filters Buttons */}
+                <button
+                  className="apply-filters-btn"
+                  onClick={applyFiltersToBackend}
+                >
+                  Apply Filters
+                </button>
+                <button className="clear-filters-btn" onClick={clearFilters}>
+                  Clear All Filters
+                </button>
               </div>
-              {/* Apply and Clear Filters Buttons */}
-              <button
-                className="apply-filters-btn"
-                onClick={applyFiltersToBackend}
-              >
-                Apply Filters
-              </button>
-              <button className="clear-filters-btn" onClick={clearFilters}>
-                Clear All Filters
-              </button>
             </div>
-            
-          </div>
-        )}
+          )}
 
+          <div className="productsWrapper">
+            <div className="sectionHeader searchHeader">
+              <h2 className="sectionTitle">Your Products</h2>
 
-        <div className="productsWrapper">
-          <div className="sectionHeader searchHeader">
-            <h2 className="sectionTitle">Your Products</h2>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={search} // Changed from searchQuery to search
+                onChange={(e) => setSearch(e.target.value)} // Changed to setSearch
+                className="productSearchInput"
+              />
+            </div>
 
-            <input
-  type="text"
-  placeholder="Search products..."
-  value={search}  // Changed from searchQuery to search
-  onChange={(e) => setSearch(e.target.value)}  // Changed to setSearch
-  className="productSearchInput"
-/>
-          </div>
-
-          <div className="sectionContent">
-            {" "}
-            {/* Changed class name */}
-            <div className="productsGrid">
+            <div className="sectionContent">
               {" "}
               {/* Changed class name */}
-             {filteredProducts
-  .filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) // Use search instead of searchQuery
-  )
-  .slice(
-    (currentPage - 1) * productsPerPage,
-    currentPage * productsPerPage
-  )
-  .map((product) => (
-    <ProductCard key={product.id} product={product} />
-  ))}
-
+              <div className="productsGrid">
+                {" "}
+                {/* Changed class name */}
+                {filteredProducts
+                  .filter(
+                    (p) => p.name.toLowerCase().includes(search.toLowerCase()) // Use search instead of searchQuery
+                  )
+                  .slice(
+                    (currentPage - 1) * productsPerPage,
+                    currentPage * productsPerPage
+                  )
+                  .map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+              </div>
             </div>
-          </div>
-          <div
-            className="pagination-buttons"
-            style={{ textAlign: "center", marginTop: "1.5rem" }}
-          >
-            <button
-              onClick={() => {
-                if (currentPage > 1) setCurrentPage((p) => p - 1);
-              }}
-              disabled={currentPage === 1}
-            
+            <div
+              className="pagination-buttons"
+              style={{ textAlign: "center", marginTop: "1.5rem" }}
             >
-              ⬅ Back
-            </button>
-            <button
-              onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={
-                currentPage >=
-               Math.ceil(filteredProducts.length / productsPerPage)
-              }
-            
-            >
-              Next ➡
-            </button>
+              <button
+                onClick={() => {
+                  if (currentPage > 1) setCurrentPage((p) => p - 1);
+                }}
+                disabled={currentPage === 1}
+              >
+                ⬅ Back
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={
+                  currentPage >=
+                  Math.ceil(filteredProducts.length / productsPerPage)
+                }
+              >
+                Next ➡
+              </button>
+            </div>
           </div>
         </div>
       </div>
-        </div>
 
       {/* Add Product Modal */}
       {showAddProduct && (

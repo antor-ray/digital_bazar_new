@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios, { all } from "axios";
 import "../css/homepage.css";
 import icon from "../images/Icon.png";
-import CustomerProfile from "./CustomerProfile"; // Assuming this component exists
+
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -22,6 +22,12 @@ const HomePage = () => {
   const [recommendedLimit, setRecommendedLimit] = useState(5);
   const [reviewLimit, setReviewLimit] = useState(3);
 
+  
+  // New states for specific product sections antor change
+  const [popularProducts, setPopularProducts] = useState([]);
+  const [newestArrivals, setNewestArrivals] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+
   // User state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState("antor-ray"); // Placeholder
@@ -34,13 +40,17 @@ const HomePage = () => {
   const [categoryFilter, setCategoryFilter] = useState("");
 
   // Filter states
-  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  //const [priceRange, setPriceRange] = useState({ min: "", max: "" });  antor change
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedRatings, setSelectedRatings] = useState([]);
   const [stockStatus, setStockStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 12;
-  const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+  //const [discountRange, setDiscountRange] = useState({ min: 0, max: 0 });
+
+  // 1. Update the state initialization (around line 28) antor change
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const [discountRange, setDiscountRange] = useState({ min: 0, max: 100 });
 
   // Top sellers state
   const [topSellers, setTopSellers] = useState([]);
@@ -52,7 +62,7 @@ const HomePage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  const user_email=localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
+  const user_email = localStorage.getItem("email") || "Guest"; // Get email from localStorage or default to 'Guest'
 
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState({
@@ -110,14 +120,72 @@ const HomePage = () => {
     fetchProducts();
   }, []);
 
+    // NEW: Fetch Popular Products antor change
+  useEffect(() => {
+    const fetchPopularProducts = async () => {
+      try {
+        const response = await axios.get("http://localhost:4000/api/v1/popular", {
+          withCredentials: true, // Send cookies for authentication check on backend
+        });
+        setPopularProducts(response.data.products);
+      } catch (error) {
+        console.error("Error fetching popular products:", error);
+        // Handle error (e.g., show a message to the user)
+      }
+    };
+    fetchPopularProducts();
+  }, []); // Empty dependency array means this runs once on mount
+
+
+  // NEW: Fetch Newest Arrivals
+  useEffect(() => {
+    const fetchNewestArrivals = async () => {
+      try {
+        const response = await axios.get("http://localhost:4000/api/v1/newest", {
+          withCredentials: true, // Send cookies if needed by backend for isAuthenticated
+        });
+        setNewestArrivals(response.data.products);
+      } catch (error) {
+        console.error("Error fetching newest arrivals:", error);
+        // Handle error
+      }
+    };
+    fetchNewestArrivals();
+  }, []); // Empty dependency array means this runs once on mount
+
+
+// NEW: Fetch Recommended Products
+ useEffect(() => {
+   const fetchRecommendedProducts = async () => {
+ try {
+ // The backend '/api/v1/products/recommended' endpoint will intelligently
+ // return personalized recommendations if the user is authenticated,
+ // otherwise it will return popular products. We just need to ensure
+        // credentials are sent.
+        const response = await axios.get("http://localhost:4000/api/v1/recommended", {
+          withCredentials: true, // Crucial for backend isAuthenticated middleware
+        });
+        setRecommendedProducts(response.data.products);
+      } catch (error) {
+        console.error("Error fetching recommended products:", error);
+        // Handle error
+      }
+    };
+    // This useEffect will re-run if isLoggedIn state changes, allowing
+    // the recommendation logic to adapt when a user logs in/out.
+    fetchRecommendedProducts();
+  }, [isLoggedIn]);
+
   // Add this function to handle sending filters to backend
+
+  // 3. Update the applyFiltersToBackend function (around line 138) antor change
   const applyFiltersToBackend = async () => {
     try {
-      // Construct query parameters based on active filters
       const queryParams = new URLSearchParams();
 
       // Add price range if set
-      if (priceRange.max) {
+      if (priceRange.min > 0 || priceRange.max < 100000) {
+        queryParams.append("minPrice", priceRange.min);
         queryParams.append("maxPrice", priceRange.max);
       }
 
@@ -142,11 +210,12 @@ const HomePage = () => {
       }
 
       // Add discount range if set
-      if (discountRange.max > 0) {
+      if (discountRange.min > 0 || discountRange.max < 100) {
+        queryParams.append("minDiscount", discountRange.min);
         queryParams.append("maxDiscount", discountRange.max);
       }
 
-      // NEW: Add selected top sellers if any
+      // Add selected top sellers if any
       if (selectedTopSellers.length > 0) {
         queryParams.append("sellerIds", selectedTopSellers.join(","));
       }
@@ -207,17 +276,17 @@ const HomePage = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // 2. Update the clearFilters function (around line 200)    antor change
   const clearFilters = () => {
-    setPriceRange({ min: "", max: "" });
+    setPriceRange({ min: 0, max: 100000 });
     setSelectedCategories([]);
     setSelectedRatings([]);
     setStockStatus("all");
     setSearch("");
     setFilteredProducts(allProducts);
-    setDiscountRange({ min: 0, max: 0 });
+    setDiscountRange({ min: 0, max: 100 });
     setTopSellers([]);
-    setSelectedTopSellers([]); // NEW: Clear selected top sellers
-    // Reset expanded sections to default collapsed/expanded state
+    setSelectedTopSellers([]);
     setExpandedSections({
       discountRange: false,
       topSellers: false,
@@ -329,15 +398,9 @@ const HomePage = () => {
           <div className="pagination-buttons">
             <button
               onClick={() => {
-               
-                  setCurrentPage((p) => p - 1);
-                
+                setCurrentPage((p) => p - 1);
               }}
-              disabled={
-                currentPage ===1
-                
-              }
-
+              disabled={currentPage === 1}
             >
               ⬅ Back
             </button>
@@ -378,35 +441,38 @@ const HomePage = () => {
 
       <nav className="navbar">
         <ul className="nav-list">
-          <li
-            className="nav-item menu-item"
-            onClick={() => setShowSidebar(!showSidebar)}
-          >
-            <span className="icon-menu">☰</span>
-          </li>
-
-          <li className="nav-item category-item">
-            Categories
+         
+           {/* antor change */}
+          <li className="nav-item category-item"> 
+            ☰ Menu
             <ul className="category-dropdown">
               <li
                 className="category-option"
-                onClick={() => navigate("/CategoryPage/Electronics")}
+                onClick={() => navigate("/CustomerHistory")}
               >
-                Electronics
+                History
               </li>
               <li
                 className="category-option"
-                onClick={() => navigate("/CategoryPage/Fashion")}
+                onClick={() => navigate("/settingspage")}
               >
-                Fashion
+                Settings
               </li>
-              <li
+
+              {/* <li
                 className="category-option"
                 onClick={() => navigate("/CategoryPage/Books")}
               >
                 Books
-              </li>
+              </li> */}
             </ul>
+
+          </li>
+           <li
+            className="nav-item menu-item"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            <span className="icon-menu">⇅ Filter products</span>
           </li>
         </ul>
         <div className="nav-actions">
@@ -422,13 +488,13 @@ const HomePage = () => {
             className="nav-action-item"
             onClick={() => navigate("/CartItems")}
           >
-            Cart
+            🧺 Cart
           </span>
           <span
             className="nav-action-item"
             onClick={() => navigate("/WishList")}
           >
-            Wishlist
+            ❤️ Wishlist
           </span>
 
           <span
@@ -441,17 +507,23 @@ const HomePage = () => {
             🔔 Notifications
           </span>
           {!isLoggedIn ? (
-            <span className="nav-item login-item" onClick={() => navigate("/Login")}>
+            <span
+              className="nav-item login-item"
+              onClick={() => navigate("/Login")}
+            >
               Login
             </span>
           ) : (
             <li className="nav-item login-item">
-              <span className="icon-profile"></span>👤{user_email}
+              <span className="icon-profile"></span>🙍 {user_email}
               <ul className="login-dropdown">
                 <li className="login-option" onClick={handleLogout}>
                   Logout
                 </li>
-                <li className="login-option" onClick={() => navigate("/CustomerProfile")}>
+                <li
+                  className="login-option"
+                  onClick={() => navigate("/CustomerProfile")}
+                >
                   Profile
                 </li>
               </ul>
@@ -516,7 +588,7 @@ const HomePage = () => {
           <div className="permanent-sidebar">
             <div className="filter-section">
               <h4>Filter Products</h4>
-              {/* Discount Percentage Filter */}
+              {/* antor change */}
               <div className="filter-group">
                 <div
                   className="filter-header"
@@ -537,12 +609,33 @@ const HomePage = () => {
                       <div className="discount-field">
                         <input
                           type="number"
-                          placeholder="Maximum Discount (%)"
-                          value={discountRange.max === 0 ? "" : discountRange.max}
+                          placeholder="Min Discount (%)"
+                          value={
+                            discountRange.min === 0 ? "" : discountRange.min
+                          }
                           onChange={(e) =>
                             setDiscountRange((prev) => ({
                               ...prev,
-                              max: e.target.value ? Number(e.target.value) : 0,
+                              min: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                      <div className="discount-field">
+                        <input
+                          type="number"
+                          placeholder="Max Discount (%)"
+                          value={
+                            discountRange.max === 100 ? "" : discountRange.max
+                          }
+                          onChange={(e) =>
+                            setDiscountRange((prev) => ({
+                              ...prev,
+                              max: e.target.value
+                                ? Number(e.target.value)
+                                : 100,
                             }))
                           }
                           min="0"
@@ -550,31 +643,41 @@ const HomePage = () => {
                         />
                       </div>
                     </div>
-                    <div className="discount-slider">
+                    <div className="dual-range-slider">
                       <input
                         type="range"
                         min="0"
                         max="100"
-                        value={discountRange.max || 0}
+                        value={discountRange.min}
                         onChange={(e) =>
                           setDiscountRange((prev) => ({
                             ...prev,
-                            max: Number(e.target.value),
+                            min: Math.min(Number(e.target.value), prev.max),
                           }))
                         }
-                        className="single-slider"
+                        className="range-slider range-min"
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={discountRange.max}
+                        onChange={(e) =>
+                          setDiscountRange((prev) => ({
+                            ...prev,
+                            max: Math.max(Number(e.target.value), prev.min),
+                          }))
+                        }
+                        className="range-slider range-max"
                       />
                     </div>
-                    {discountRange.max > 0 && (
-                      <div className="discount-range-text">
-                        0% - {discountRange.max}%
-                      </div>
-                    )}
+                    <div className="discount-range-text">
+                      {discountRange.min}% - {discountRange.max}%
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Price Range Filter */}
               <div className="filter-group">
                 <div
                   className="filter-header"
@@ -595,36 +698,67 @@ const HomePage = () => {
                       <div className="price-field">
                         <input
                           type="number"
-                          placeholder="Maximum Price"
-                          value={priceRange.max === 0 ? "" : priceRange.max}
+                          placeholder="Min Price"
+                          value={priceRange.min === 0 ? "" : priceRange.min}
                           onChange={(e) =>
                             setPriceRange((prev) => ({
                               ...prev,
-                              max: e.target.value ? Number(e.target.value) : 0,
+                              min: e.target.value ? Number(e.target.value) : 0,
+                            }))
+                          }
+                          min="0"
+                        />
+                      </div>
+                      <div className="price-field">
+                        <input
+                          type="number"
+                          placeholder="Max Price"
+                          value={
+                            priceRange.max === 100000 ? "" : priceRange.max
+                          }
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: e.target.value
+                                ? Number(e.target.value)
+                                : 100000,
                             }))
                           }
                           min="0"
                         />
                       </div>
                     </div>
-                    <div className="price-slider">
+                    <div className="dual-range-slider">
                       <input
                         type="range"
                         min="0"
                         max="100000"
-                        value={priceRange.max || 0}
+                        value={priceRange.min}
                         onChange={(e) =>
                           setPriceRange((prev) => ({
                             ...prev,
-                            max: Number(e.target.value),
+                            min: Math.min(Number(e.target.value), prev.max),
                           }))
                         }
-                        className="single-slider"
+                        className="range-slider range-min"
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="100000"
+                        value={priceRange.max}
+                        onChange={(e) =>
+                          setPriceRange((prev) => ({
+                            ...prev,
+                            max: Math.max(Number(e.target.value), prev.min),
+                          }))
+                        }
+                        className="range-slider range-max"
                       />
                     </div>
-                    {priceRange.max > 0 && (
-                      <div className="price-range-text">৳0 - ৳{priceRange.max}</div>
-                    )}
+                    <div className="price-range-text">
+                      ৳{priceRange.min} - ৳{priceRange.max}
+                    </div>
                   </div>
                 )}
               </div>
@@ -647,10 +781,16 @@ const HomePage = () => {
                   </span>
                 </div>
                 {expandedSections.topSellers && (
-                  <div className="top-sellers-list checkbox-group"> {/* Added checkbox-group class */}
+                  <div className="top-sellers-list checkbox-group">
+                    {" "}
+                    {/* Added checkbox-group class */}
                     {isLoadingTopSellers && <p>Loading top sellers...</p>}
-                    {errorTopSellers && <p className="error-message">{errorTopSellers}</p>}
-                    {!isLoadingTopSellers && !errorTopSellers && topSellers.length > 0 ? (
+                    {errorTopSellers && (
+                      <p className="error-message">{errorTopSellers}</p>
+                    )}
+                    {!isLoadingTopSellers &&
+                    !errorTopSellers &&
+                    topSellers.length > 0 ? (
                       // Changed from ul to div with labels for checkboxes
                       <div>
                         {topSellers.map((seller) => (
@@ -660,7 +800,10 @@ const HomePage = () => {
                               checked={selectedTopSellers.includes(seller.id)}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedTopSellers((prev) => [...prev, seller.id]);
+                                  setSelectedTopSellers((prev) => [
+                                    ...prev,
+                                    seller.id,
+                                  ]);
                                 } else {
                                   setSelectedTopSellers((prev) =>
                                     prev.filter((id) => id !== seller.id)
@@ -673,7 +816,11 @@ const HomePage = () => {
                         ))}
                       </div>
                     ) : (
-                      !isLoadingTopSellers && !errorTopSellers && topSellers.length === 0 && <p>No top sellers available at the moment.</p>
+                      !isLoadingTopSellers &&
+                      !errorTopSellers &&
+                      topSellers.length === 0 && (
+                        <p>No top sellers available at the moment.</p>
+                      )
                     )}
                   </div>
                 )}
@@ -830,7 +977,7 @@ const HomePage = () => {
                 Clear All Filters
               </button>
             </div>
-            <h3 className="sidebar-title">Menu</h3>
+            {/* <h3 className="sidebar-title">Menu</h3>  antor change
             <ul className="sidebar-list">
               <li
                 className="sidebar-item"
@@ -847,7 +994,7 @@ const HomePage = () => {
               <li className="sidebar-item logout" onClick={handleLogout}>
                 Logout
               </li>
-            </ul>
+            </ul> */}
           </div>
         )}
 
@@ -866,26 +1013,26 @@ const HomePage = () => {
             <>
               <ProductSection
                 title="Popular Products"
-                products={allProducts}
+                products={popularProducts}
                 limit={popularLimit}
                 setLimit={setPopularLimit}
               />
 
               <ProductSection
                 title="Newest Arrivals"
-                products={filterProducts()}
+                products={newestArrivals}
                 limit={newestLimit}
                 setLimit={setNewestLimit}
               />
 
               <ProductSection
                 title="Recommended For You"
-                products={filterProducts()}
+                products={recommendedProducts}
                 limit={recommendedLimit}
                 setLimit={setRecommendedLimit}
               />
 
-              <section className="review-section">
+              {/* <section className="review-section">        antor change
                 <h2 className="section-title">Customer Reviews</h2>
                 <div className="reviews-container">
                   {[1, 2, 3, 4, 5, 6].slice(0, reviewLimit).map((_, index) => (
@@ -912,7 +1059,7 @@ const HomePage = () => {
                     See Less
                   </button>
                 )}
-              </section>
+              </section> */}
             </>
           )}
         </div>

@@ -65,7 +65,7 @@ const CheckoutPage = () => {
                 address
             }, { withCredentials: true });
 
-            //  transfer items from cart to order_items
+            // transfer items from cart to order_items
             const transferItems = await axios.post(
                 "http://localhost:4000/transfer/item",
                 {
@@ -94,9 +94,10 @@ const CheckoutPage = () => {
 
                 window.location.href = paymentRes.data.GatewayPageURL;
             }
+
         } catch (err) {
             console.error("Order placement failed:", err);
-            alert("Order placement or payment initiation failed.");
+            // alert("Order placement or payment initiation failed.");
         }
     };
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../css/cart.css";
+import icon from "../images/Icon.png"
 
 const CartProducts = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -96,6 +97,10 @@ const CartProducts = () => {
 
   return (
     <div className="cart-container">
+      <div className="websiteHeader full-width">
+              <img className="iconImage" src={icon} alt="Site Icon" />
+              <span id="websiteName">DIGITAL BAZAAR</span>
+            </div>
       <h2 className="cart-title">CART ITEMS</h2>
       {cartItems.length === 0 ? (
         <p>Your cart is empty.</p>
