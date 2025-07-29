@@ -64,6 +64,13 @@ const HomePage = () => {
 
   const user_email = localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
 
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      applyFiltersToBackend();
+        // Call your search function
+    }
+  };
   // Section expansion state
   const [expandedSections, setExpandedSections] = useState({
     priceRange: false,
@@ -476,13 +483,14 @@ const HomePage = () => {
           </li>
         </ul>
         <div className="nav-actions">
-          <input
+          {showSidebar  && <input
             type="text"
             className="search-input"
             placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-          />
+             onKeyDown={handleKeyDown}
+          />};
 
           <span
             className="nav-action-item"

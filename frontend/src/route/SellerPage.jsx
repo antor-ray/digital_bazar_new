@@ -29,6 +29,7 @@ const SellerDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [ordersThisMonth, setOrdersThisMonth] = useState(0);
+  const [averageRating, setAverageRating] = useState(0);
   // for search bar
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 9; // or whatever number fits your layout
@@ -649,8 +650,8 @@ const SellerDashboard = () => {
               <div className="statContent">
                 <Star className="statIcon yellow" />
                 <div>
-                  <p className="statLabel">Average Rating</p>
-                  <p className="statValue">4.8</p>
+                 <p className="statLabel">Average Rating</p>
+                  <p className="statValue">${!isNaN(averageRating)?averageRating:"0"}</p> 
                 </div>
               </div>
             </div>
@@ -957,6 +958,7 @@ const SellerDashboard = () => {
                   )}
                 </div>
                 {/* Ratings Filter */}
+
                 <div className="filter-group">
                   <div
                     className="filter-header"

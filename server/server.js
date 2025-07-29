@@ -33,7 +33,7 @@ app.use("/images", express.static(path.join(__dirname, "/images")));
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
- 
+
   try {
     let user = null;
     let role = null;
@@ -169,12 +169,16 @@ app.post("/register", async (req, res) => {
 
 //customer profile
 
-app.get("/api/customer/profile", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.id;
-  // console.log(customerId);
-  try {
-    const results = await db.query(
-      `SELECT email, customer_name, password, city, region, detail_address, phone_number
+app.get(
+  "/api/customer/profile",
+  isAuthenticated,
+  authorizeRoles("customer"),
+  async (req, res) => {
+    const customerId = req.user.id;
+    // console.log(customerId);
+    try {
+      const results = await db.query(
+        `SELECT email, customer_name, password, city, region, detail_address, phone_number
         FROM customer
         WHERE customer_id = $1`,
         [customerId]
@@ -413,7 +417,8 @@ JOIN (
     FROM image
     ORDER BY product_id ASC, image_id
 ) i ON p.product_id = i.product_id
- WHERE STATUS = 'PRESENT';`);
+ WHERE STATUS = 'PRESENT';`
+    );
     res.json({
       status: "success",
       products: results.rows,
@@ -555,15 +560,19 @@ app.delete(
 
 //transfer products from cart to order_items
 
-app.post("/transfer/item", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const customerId = req.user.id;
-  const { orderId, cartItems } = req.body;
-  try {
-    const cartResult = await db.query(
-      `SELECT cart_id FROM customer WHERE customer_id = $1`,
-      [customerId]
-    );
-    const cart_id = cartResult.rows[0].cart_id;
+app.post(
+  "/transfer/item",
+  isAuthenticated,
+  authorizeRoles("customer"),
+  async (req, res) => {
+    const customerId = req.user.id;
+    const { orderId, cartItems } = req.body;
+    try {
+      const cartResult = await db.query(
+        `SELECT cart_id FROM customer WHERE customer_id = $1`,
+        [customerId]
+      );
+      const cart_id = cartResult.rows[0].cart_id;
 
       for (const item of cartItems) {
         const { product_id, quantity, selling_price } = item;
@@ -635,41 +644,46 @@ app.get("/categoryProducts/:categoryName", async (req, res) => {
 
 // for reviews ---------------------------------------------------------------------
 
-app.post("/api/v1/products/:id/reviews", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-  const productId = parseInt(req.params.id);
-  const { rating, comment } = req.body;
-  const customerId = req.user.id;
+app.post(
+  "/api/v1/products/:id/reviews",
+  isAuthenticated,
+  authorizeRoles("customer"),
+  async (req, res) => {
+    const productId = parseInt(req.params.id);
+    const { rating, comment } = req.body;
+    const customerId = req.user.id;
 
-  if (!rating || !comment) {
-    return res.status(400).json({ error: "Rating and comment are required" });
-  }
-
-  try {
-    //Check if the customer already reviewed this product
-    const existingReview = await db.query(
-      `SELECT * FROM review WHERE product_id = $1 AND customer_id = $2`,
-      [productId, customerId]
-    );
-
-    if (existingReview.rows.length > 0) {
-      return res
-        .status(409)
-        .json({ error: "You have already reviewed this product." });
+    if (!rating || !comment) {
+      return res.status(400).json({ error: "Rating and comment are required" });
     }
 
-    // Insert the new review
-    await db.query(
-      `INSERT INTO review (customer_id, product_id, description, date, rating)
-       VALUES ($1, $2, $3, CURRENT_DATE, $4)`,
-      [customerId, productId, comment, rating]
-    );
+    try {
+      //Check if the customer already reviewed this product
+      const existingReview = await db.query(
+        `SELECT * FROM review WHERE product_id = $1 AND customer_id = $2`,
+        [productId, customerId]
+      );
 
-    res.status(201).json({ message: "Review submitted successfully" });
-  } catch (err) {
-    console.error("Error inserting review:", err);
-    res.status(500).json({ error: "Failed to submit review" });
+      if (existingReview.rows.length > 0) {
+        return res
+          .status(409)
+          .json({ error: "You have already reviewed this product." });
+      }
+
+      // Insert the new review
+      await db.query(
+        `INSERT INTO review (customer_id, product_id, description, date, rating)
+       VALUES ($1, $2, $3, CURRENT_DATE, $4)`,
+        [customerId, productId, comment, rating]
+      );
+
+      res.status(201).json({ message: "Review submitted successfully" });
+    } catch (err) {
+      console.error("Error inserting review:", err);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
   }
-});
+);
 
 app.get("/api/v1/products/:id/reviews", async (req, res) => {
   const productId = parseInt(req.params.id);
@@ -693,36 +707,35 @@ app.get("/api/v1/products/:id/reviews", async (req, res) => {
   }
 });
 
-
 // customer history API endpoint - Revised for new filtering options and schema considerations antor change
-app.get('/customerHistory', isAuthenticated, async (req, res) => {
-    try {
-        const customerId = req.user.id;
-        const { month, sortBy } = req.query;
+app.get("/customerHistory", isAuthenticated, async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { month, sortBy } = req.query;
 
-        let baseQuery = '';
-        let queryParams = [customerId];
-        let paramIndex = 2; // Start parameters from $2 for month filtering
+    let baseQuery = "";
+    let queryParams = [customerId];
+    let paramIndex = 2; // Start parameters from $2 for month filtering
 
-        // Helper to add month filter to any query
-        const addMonthFilter = (query) => {
-            if (month) {
-                const [year, monthNum] = month.split('-');
-                query += ` AND TO_CHAR(co.date, 'YYYY-MM') = $${paramIndex}`;
-                queryParams.push(`${year}-${monthNum}`);
-                paramIndex++;
-            }
-            return query;
-        };
+    // Helper to add month filter to any query
+    const addMonthFilter = (query) => {
+      if (month) {
+        const [year, monthNum] = month.split("-");
+        query += ` AND TO_CHAR(co.date, 'YYYY-MM') = $${paramIndex}`;
+        queryParams.push(`${year}-${monthNum}`);
+        paramIndex++;
+      }
+      return query;
+    };
 
-        if (sortBy === 'most_bought_products') {
-            // This query counts how many times each product has been bought by the customer.
-            // It links to seller info via the 'sell' table.
-            // NOTE: If a product is sold by multiple sellers in the 'sell' table,
-            // this query might arbitrarily pick one seller for 'sellerName'/'sellerPhone'
-            // or return multiple entries if the join on 'sell' is not distinct enough.
-            // For accurate 'seller of THIS specific order item', 'order_item' needs 'seller_id'.
-            baseQuery = `
+    if (sortBy === "most_bought_products") {
+      // This query counts how many times each product has been bought by the customer.
+      // It links to seller info via the 'sell' table.
+      // NOTE: If a product is sold by multiple sellers in the 'sell' table,
+      // this query might arbitrarily pick one seller for 'sellerName'/'sellerPhone'
+      // or return multiple entries if the join on 'sell' is not distinct enough.
+      // For accurate 'seller of THIS specific order item', 'order_item' needs 'seller_id'.
+      baseQuery = `
                 SELECT
                     p.product_id,
                     p.product_name,
@@ -748,9 +761,9 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                     AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
             `;
 
-            baseQuery = addMonthFilter(baseQuery);
+      baseQuery = addMonthFilter(baseQuery);
 
-            baseQuery += `
+      baseQuery += `
                 GROUP BY
                     p.product_id,
                     p.product_name,
@@ -758,12 +771,11 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                 ORDER BY
                     total_bought_count DESC
             `;
-
-        } else if (sortBy === 'top_sellers') {
-            // This query identifies sellers whose products appear most frequently in the customer's purchase history.
-            // Due to schema, it cannot definitively say 'this customer bought from THIS seller for THIS item'.
-            // It counts distinct products bought by the customer that are associated with each seller in the 'sell' table.
-            baseQuery = `
+    } else if (sortBy === "top_sellers") {
+      // This query identifies sellers whose products appear most frequently in the customer's purchase history.
+      // Due to schema, it cannot definitively say 'this customer bought from THIS seller for THIS item'.
+      // It counts distinct products bought by the customer that are associated with each seller in the 'sell' table.
+      baseQuery = `
                 SELECT
                     s.seller_id,
                     s.business_name AS seller_name,
@@ -785,9 +797,9 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                     AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
             `;
 
-            baseQuery = addMonthFilter(baseQuery);
+      baseQuery = addMonthFilter(baseQuery);
 
-            baseQuery += `
+      baseQuery += `
                 GROUP BY
                     s.seller_id,
                     s.business_name,
@@ -795,13 +807,12 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                 ORDER BY
                     total_items_from_seller DESC -- Order by total quantity bought
             `;
-
-        } else {
-            // Original query for normal purchase history (by order)
-            // NOTE: The join 'LEFT JOIN sell sl ON p.product_id = sl.product_id'
-            // and subsequent join to 'seller' will pick an arbitrary seller if multiple
-            // sellers offer the same product and there's no seller_id in order_item.
-            baseQuery = `
+    } else {
+      // Original query for normal purchase history (by order)
+      // NOTE: The join 'LEFT JOIN sell sl ON p.product_id = sl.product_id'
+      // and subsequent join to 'seller' will pick an arbitrary seller if multiple
+      // sellers offer the same product and there's no seller_id in order_item.
+      baseQuery = `
                 SELECT
                     co.order_id,
                     co.date AS date,
@@ -833,9 +844,9 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                     AND pay.status = 'successful'
             `;
 
-            baseQuery = addMonthFilter(baseQuery);
+      baseQuery = addMonthFilter(baseQuery);
 
-            baseQuery += `
+      baseQuery += `
                 GROUP BY
                     co.order_id,
                     co.date,
@@ -844,62 +855,61 @@ app.get('/customerHistory', isAuthenticated, async (req, res) => {
                     dm.phone_number
             `;
 
-            // Apply sorting for the original history view
-            if (sortBy === "newest_date") {
-                baseQuery += ` ORDER BY co.date DESC`;
-            } else if (sortBy === "oldest_date") {
-                baseQuery += ` ORDER BY co.date ASC`;
-            } else if (sortBy === "highest_total") {
-                baseQuery += ` ORDER BY co.total_cost DESC`;
-            } else if (sortBy === "lowest_total") {
-                baseQuery += ` ORDER BY co.total_cost ASC`;
-            } else {
-                baseQuery += ` ORDER BY co.date DESC`; // Default sort
-            }
-        }
-
-        const result = await db.query(baseQuery, queryParams);
-        const historyData = result.rows;
-        const totalItems = historyData.length;
-
-        if (!historyData || historyData.length === 0) {
-            return res.status(200).json({
-                status: "success",
-                purchaseHistory: [],
-                mostBoughtProducts: [],
-                topSellers: [],
-                totalOrders: 0 // Reset total orders for empty results
-            });
-        }
-
-        // Return the appropriate data structure based on the sortBy filter
-        if (sortBy === 'most_bought_products') {
-            res.status(200).json({
-                status: "success",
-                mostBoughtProducts: historyData,
-                totalOrders: totalItems // This is count of distinct products
-            });
-        } else if (sortBy === 'top_sellers') {
-            res.status(200).json({
-                status: "success",
-                topSellers: historyData,
-                totalOrders: totalItems // This is count of distinct sellers
-            });
-        } else {
-            res.status(200).json({
-                status: "success",
-                purchaseHistory: historyData,
-                totalOrders: totalItems
-            });
-        }
-
-    } catch (error) {
-        console.error("Error fetching customer history:", error);
-        res.status(500).json({
-            status: "error",
-            message: "Failed to retrieve purchase history. Please try again later."
-        });
+      // Apply sorting for the original history view
+      if (sortBy === "newest_date") {
+        baseQuery += ` ORDER BY co.date DESC`;
+      } else if (sortBy === "oldest_date") {
+        baseQuery += ` ORDER BY co.date ASC`;
+      } else if (sortBy === "highest_total") {
+        baseQuery += ` ORDER BY co.total_cost DESC`;
+      } else if (sortBy === "lowest_total") {
+        baseQuery += ` ORDER BY co.total_cost ASC`;
+      } else {
+        baseQuery += ` ORDER BY co.date DESC`; // Default sort
+      }
     }
+
+    const result = await db.query(baseQuery, queryParams);
+    const historyData = result.rows;
+    const totalItems = historyData.length;
+
+    if (!historyData || historyData.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        purchaseHistory: [],
+        mostBoughtProducts: [],
+        topSellers: [],
+        totalOrders: 0, // Reset total orders for empty results
+      });
+    }
+
+    // Return the appropriate data structure based on the sortBy filter
+    if (sortBy === "most_bought_products") {
+      res.status(200).json({
+        status: "success",
+        mostBoughtProducts: historyData,
+        totalOrders: totalItems, // This is count of distinct products
+      });
+    } else if (sortBy === "top_sellers") {
+      res.status(200).json({
+        status: "success",
+        topSellers: historyData,
+        totalOrders: totalItems, // This is count of distinct sellers
+      });
+    } else {
+      res.status(200).json({
+        status: "success",
+        purchaseHistory: historyData,
+        totalOrders: totalItems,
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching customer history:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve purchase history. Please try again later.",
+    });
+  }
 });
 
 // wishlist items fetching-------------------------------
@@ -934,6 +944,58 @@ app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error("Error fetching wishlist:", err);
     res.status(500).json({ message: "Failed to fetch wishlist" });
+  }
+});
+
+// Similar products based on tags
+
+app.get("/api/v1/products/similar/:id", async (req, res) => {
+  const productId = parseInt(req.params.id);
+  let tags = req.query.tags;
+
+  if (!tags) {
+    return res
+      .status(400)
+      .json({ error: "Tags are required for similarity check." });
+  }
+
+  if (typeof tags === "string") {
+    tags = tags.split(",").map((tag) => tag.trim());
+  }
+
+  try {
+    const tagConditions = tags
+      .map((_, idx) => `p.tags ILIKE '%' || $${idx + 2} || '%'`)
+      .join(" OR ");
+
+    const query = `
+      SELECT 
+        p.product_id,
+        p.product_name,
+        p.tags,
+        s.seller_id,
+        s.actual_price,
+        s.selling_price,
+        s.stock,
+        i.image_url,
+        s.discount
+      FROM product p
+      JOIN sell s ON p.product_id = s.product_id
+      JOIN (
+        SELECT DISTINCT ON (product_id) *
+        FROM image
+        ORDER BY product_id, image_id
+      ) i ON p.product_id = i.product_id
+      WHERE p.product_id != $1 AND (${tagConditions}) AND s.status = 'PRESENT'
+    `;
+
+    const values = [productId, ...tags];
+    const result = await db.query(query, values);
+
+    res.status(200).json({ products: result.rows });
+  } catch (err) {
+    console.error("Error fetching similar products:", err);
+    res.status(500).json({ error: "Failed to fetch similar products." });
   }
 });
 
@@ -977,12 +1039,10 @@ app.delete(
         .json({ success: true, message: "Product removed from wishlist" });
     } catch (err) {
       console.error("Error removing product from wishlist:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "Failed to remove product from wishlist",
-        });
+      res.status(500).json({
+        success: false,
+        message: "Failed to remove product from wishlist",
+      });
     }
   }
 );
@@ -1043,10 +1103,9 @@ app.post("/SellerLogin", async (req, res) => {
 app.get("/getSellerInfo", isAuthenticated, async (req, res) => {
   const sellerId = req.user.id;
   try {
-    const result = await db.query(
-      `SELECT * FROM seller WHERE seller_id = $1`,
-      [sellerId]
-    );
+    const result = await db.query(`SELECT * FROM seller WHERE seller_id = $1`, [
+      sellerId,
+    ]);
 
     const seller = result.rows[0];
 
@@ -1129,49 +1188,69 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Add Product with 4 images
-app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), async (req, res) => {
-  try {
-    const {
-      name, category, price, discount, stock,
-      details, short_des, tags
-    } = req.body;
+app.post(
+  "/SellerPage/addProduct",
+  isAuthenticated,
+  upload.array("images", 4),
+  async (req, res) => {
+    try {
+      const {
+        name,
+        category,
+        price,
+        discount,
+        stock,
+        details,
+        short_des,
+        tags,
+      } = req.body;
 
-    const seller_id = req.user.id;
+      const seller_id = req.user.id;
 
-    const productName = await db.query(
-      "SELECT * FROM product WHERE product_name = $1",
-      [name]);
-
-
-
-    if (productName.rows.length > 0) {
-      const existingProductId = productName.rows[0].product_id;
-
-      const productStatus = await db.query(
-        "select * from sell where product_id = $1 and seller_id = $2",
-        [existingProductId, seller_id]
+      const productName = await db.query(
+        `SELECT * 
+   FROM product p 
+   JOIN sell s ON p.product_id = s.product_id
+   WHERE p.product_name = $1 AND s.seller_id = $2`,
+        [name, seller_id]
       );
 
-      if (productStatus.rows[0].status === 'PRESENT') {
-        return res.status(404).json({ success: false, message: "Product already exists" });
-      }
-      else if (productStatus.rows[0].status === 'DELETED') {
-        // Restore the product
-        await db.query(`UPDATE product SET product_details = $1, tags = $2, short_des = $3 WHERE product_id = $4`,
-          [details, tags, short_des, existingProductId]);
+      if (productName.rows.length > 0) {
+        const existingProductId = productName.rows[0].product_id;
 
-        // Update the category (if changed)
-        const categoryRes = await db.query(
-          "SELECT category_id FROM category WHERE category_name = $1",
-          [category]
+        const productStatus = await db.query(
+          "select * from sell where product_id = $1 and seller_id = $2",
+          [existingProductId, seller_id]
         );
-        if (categoryRes.rowCount === 0) return res.json({ success: false, message: "Invalid category" });
 
-        const category_id = categoryRes.rows[0].category_id;
-        await db.query("UPDATE product SET category_id = $1 WHERE product_id = $2", [category_id, existingProductId]);
+        if (productStatus.rows[0].status === "PRESENT") {
+          return res
+            .status(404)
+            .json({ success: false, message: "Product already exists" });
+        } else if (productStatus.rows[0].status === "DELETED") {
+          // Restore the product
+          await db.query(
+            `UPDATE product SET product_details = $1, tags = $2, short_des = $3 WHERE product_id = $4`,
+            [details, tags, short_des, existingProductId]
+          );
 
-        // Reinsert into sell table
-        await db.query(`
+          // Update the category (if changed)
+          const categoryRes = await db.query(
+            "SELECT category_id FROM category WHERE category_name = $1",
+            [category]
+          );
+          if (categoryRes.rowCount === 0)
+            return res.json({ success: false, message: "Invalid category" });
+
+          const category_id = categoryRes.rows[0].category_id;
+          await db.query(
+            "UPDATE product SET category_id = $1 WHERE product_id = $2",
+            [category_id, existingProductId]
+          );
+
+          // Reinsert into sell table
+          await db.query(
+            `
   UPDATE sell
   SET 
     sell_date = CURRENT_DATE,
@@ -1181,118 +1260,134 @@ app.post("/SellerPage/addProduct", isAuthenticated, upload.array("images", 4), a
     stock = $6,
     status = 'PRESENT'
   WHERE seller_id = $1 AND product_id = $2`,
-          [seller_id, existingProductId, price, discount, (price - price * (discount / 100)), stock]
+            [
+              seller_id,
+              existingProductId,
+              price,
+              discount,
+              price - price * (discount / 100),
+              stock,
+            ]
+          );
+
+          // Re-insert images
+          const imageUrls = [];
+          await db.query("DELETE FROM image WHERE product_id = $1", [
+            existingProductId,
+          ]); // Remove old images if needed
+
+          const imageInserts = req.files.map((file) => {
+            const imageUrl = `${file.filename}`;
+            imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
+            return db.query(
+              "INSERT INTO image (product_id, image_url) VALUES ($1, $2)",
+              [existingProductId, imageUrl]
+            );
+          });
+          await Promise.all(imageInserts);
+
+          // Respond with updated product
+          const restoredProduct = {
+            id: existingProductId,
+            name: name,
+            category: category,
+            price: parseFloat(price),
+            discount: parseFloat(discount),
+            stock: parseInt(stock),
+            status: parseInt(stock) > 0 ? "Active" : "Out of Stock",
+            images: imageUrls,
+            details: details,
+            short_des: short_des,
+            tags: tags,
+          };
+
+          return res.json({
+            success: true,
+            restored: true,
+            product_id: existingProductId,
+            product: restoredProduct,
+          });
+        }
+      } else {
+        // 1. Get category_id from name
+        const categoryRes = await db.query(
+          "SELECT category_id FROM category WHERE category_name = $1",
+          [category]
         );
+        if (categoryRes.rowCount === 0)
+          return res.json({ success: false, message: "Invalid category" });
 
+        const category_id = categoryRes.rows[0].category_id;
 
-        // Re-insert images
+        // 2. Insert product
+        const productRes = await db.query(
+          `INSERT INTO product (
+         category_id, product_name, product_details, tags, short_des
+       ) VALUES ($1, $2, $3, $4, $5) RETURNING product_id`,
+          [category_id, name, details, tags, short_des]
+        );
+        const product_id = productRes.rows[0].product_id;
+        const seller_id = req.user.id;
+        //console.log("Product inserted with ID:", product_id);
+        // 3. Insert into sell
+        await db.query(
+          `
+      INSERT INTO sell(
+      seller_id, product_id, sell_date, actual_price, discount, selling_price, stock) VALUES
+      ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`,
+          [
+            seller_id,
+            product_id,
+            price,
+            discount,
+            price - price * (discount / 100),
+            stock,
+          ]
+        );
+        //console.log("inserted in sell table successfully");
+
+        // 4. Insert images (4 max)
         const imageUrls = [];
-        await db.query("DELETE FROM image WHERE product_id = $1", [existingProductId]); // Remove old images if needed
-
-        const imageInserts = req.files.map(file => {
+        const imageInserts = req.files.map((file) => {
           const imageUrl = `${file.filename}`;
           imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
-          return db.query("INSERT INTO image (product_id, image_url) VALUES ($1, $2)", [
-            existingProductId,
-            imageUrl,
-          ]);
+          return db.query(
+            "INSERT INTO image (product_id, image_url) VALUES ($1, $2)",
+            [product_id, imageUrl]
+          );
         });
         await Promise.all(imageInserts);
+        // console.log("image is inserted: ", imageUrls);
 
-        // Respond with updated product
-        const restoredProduct = {
-          id: existingProductId,
+        // 5. Return the complete product object that matches frontend expectations
+        const newProduct = {
+          id: product_id,
           name: name,
           category: category,
           price: parseFloat(price),
           discount: parseFloat(discount),
           stock: parseInt(stock),
-          status: parseInt(stock) > 0 ? 'Active' : 'Out of Stock',
+          status: parseInt(stock) > 0 ? "Active" : "Out of Stock",
           images: imageUrls,
           details: details,
           short_des: short_des,
           tags: tags,
         };
 
-        return res.json({
+        res.json({
           success: true,
-          restored: true,
-          product_id: existingProductId,
-          product: restoredProduct
-        });
-
-      }
-    }
-    else {
-      // 1. Get category_id from name
-      const categoryRes = await db.query(
-        "SELECT category_id FROM category WHERE category_name = $1",
-        [category]
-      );
-      if (categoryRes.rowCount === 0) return res.json({ success: false, message: "Invalid category" });
-
-      const category_id = categoryRes.rows[0].category_id;
-
-      // 2. Insert product
-      const productRes = await db.query(
-        `INSERT INTO product (
-         category_id, product_name, product_details, tags, short_des
-       ) VALUES ($1, $2, $3, $4, $5) RETURNING product_id`,
-        [category_id, name, details, tags, short_des]
-      );
-      const product_id = productRes.rows[0].product_id;
-      const seller_id = req.user.id;
-      //console.log("Product inserted with ID:", product_id);
-      // 3. Insert into sell
-      await db.query(`
-      INSERT INTO sell(
-      seller_id, product_id, sell_date, actual_price, discount, selling_price, stock) VALUES
-      ($1, $2, CURRENT_DATE, $3, $4, $5, $6)`, [seller_id, product_id, price, discount, (price - price * (discount / 100)), stock]
-      );
-      //console.log("inserted in sell table successfully");
-
-      // 4. Insert images (4 max)
-      const imageUrls = [];
-      const imageInserts = req.files.map(file => {
-        const imageUrl = `${file.filename}`;
-        imageUrls.push(`http://localhost:4000/images/${imageUrl}`);
-        return db.query("INSERT INTO image (product_id, image_url) VALUES ($1, $2)", [
           product_id,
-          imageUrl,
-        ]);
-      });
-      await Promise.all(imageInserts);
-      // console.log("image is inserted: ", imageUrls);
+          product: newProduct,
+        });
+      }
 
-      // 5. Return the complete product object that matches frontend expectations
-      const newProduct = {
-        id: product_id,
-        name: name,
-        category: category,
-        price: parseFloat(price),
-        discount: parseFloat(discount),
-        stock: parseInt(stock),
-        status: parseInt(stock) > 0 ? 'Active' : 'Out of Stock',
-        images: imageUrls,
-        details: details,
-        short_des: short_des,
-        tags: tags,
-      };
-
-      res.json({
-        success: true,
-        product_id,
-        product: newProduct
-      });
+      //console.log(newProduct);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, message: "Server error" });
     }
-
-
-    //console.log(newProduct);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
   }
-});
+);
 
 //////// update product details ____________________________________-
 app.put(
@@ -1429,12 +1524,10 @@ app.get("/SellerPage/products", isAuthenticated, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching seller-specific products:", err);
-    res
-      .status(500)
-      .json({
-        status: "error",
-        message: "Server error fetching seller products.",
-      });
+    res.status(500).json({
+      status: "error",
+      message: "Server error fetching seller products.",
+    });
   }
 });
 
@@ -1455,95 +1548,104 @@ app.delete(
     try {
       await db.query("BEGIN");
 
-    // Check if product exists and belongs to seller
-    // const checkProduct = await db.query(
-    //   "SELECT * FROM sell WHERE product_id = $1 AND seller_id = $2",
-    //   [productId, seller_id]
-    // );
+      // Check if product exists and belongs to seller
+      // const checkProduct = await db.query(
+      //   "SELECT * FROM sell WHERE product_id = $1 AND seller_id = $2",
+      //   [productId, seller_id]
+      // );
 
-    const checkProduct = await db.query(
-      "UPDATE SELL SET STATUS = 'DELETED' WHERE product_id = $1 AND seller_id = $2 RETURNING *",
-      [productId, seller_id]
-    );
+      const checkProduct = await db.query(
+        "UPDATE SELL SET STATUS = 'DELETED' WHERE product_id = $1 AND seller_id = $2 RETURNING *",
+        [productId, seller_id]
+      );
 
       if (checkProduct.rowCount === 0) {
         await db.query("ROLLBACK");
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "Product not found or unauthorized.",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "Product not found or unauthorized.",
+        });
       }
 
-    // 1. Get image filenames from the DB
-    // const imageResult = await db.query(
-    //   "SELECT image_url FROM image WHERE product_id = $1",
-    //   [productId]
-    // );
+      // 1. Get image filenames from the DB
+      // const imageResult = await db.query(
+      //   "SELECT image_url FROM image WHERE product_id = $1",
+      //   [productId]
+      // );
 
-    // const imagePaths = imageResult.rows.map(row =>
-    //   path.join(__dirname, "images", row.image_url)
-    // );
+      // const imagePaths = imageResult.rows.map(row =>
+      //   path.join(__dirname, "images", row.image_url)
+      // );
 
-    // // 2. Delete image records from DB
-    // await db.query("DELETE FROM image WHERE product_id = $1", [productId]);
+      // // 2. Delete image records from DB
+      // await db.query("DELETE FROM image WHERE product_id = $1", [productId]);
 
-    // // 3. Delete files from disk
-    // imagePaths.forEach((imgPath) => {
-    //   fs.unlink(imgPath, (err) => {
-    //     if (err) console.warn("Failed to delete image file:", imgPath, err.message);
-    //   });
-    // });
+      // // 3. Delete files from disk
+      // imagePaths.forEach((imgPath) => {
+      //   fs.unlink(imgPath, (err) => {
+      //     if (err) console.warn("Failed to delete image file:", imgPath, err.message);
+      //   });
+      // });
 
       // 4. Delete sell and product entries
 
-    // await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
-    // await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
+      // await db.query("DELETE FROM wish_item WHERE product_id = $1", [productId]);
+      // await db.query("DELETE FROM cart_item WHERE product_id = $1", [productId]);
 
-    // await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
-    // await db.query("DELETE FROM sell WHERE product_id = $1 AND seller_id = $2", [productId, seller_id]);
-    // await db.query("DELETE FROM product WHERE product_id = $1", [productId]);
-    // await db.query("DELETE FROM review WHERE product_id = $1", [productId]);
-    await db.query("COMMIT");
+      // await db.query("DELETE FROM order_item WHERE product_id = $1", [productId]);
+      // await db.query("DELETE FROM sell WHERE product_id = $1 AND seller_id = $2", [productId, seller_id]);
+      // await db.query("DELETE FROM product WHERE product_id = $1", [productId]);
+      // await db.query("DELETE FROM review WHERE product_id = $1", [productId]);
+      await db.query("COMMIT");
 
-    res.json({ success: true, message: "Product and images deleted successfully." });
-  } catch (err) {
-    await db.query("ROLLBACK");
-    console.error("Error deleting product:", err);
-    res.status(500).json({ success: false, message: "Server error while deleting product." });
-  }
-});
-
-//to restore the product
-app.post("/SellerPage/restoreProduct/:id", isAuthenticated, async (req, res) => {
-  const productId = req.params.id;
-  const seller_id = req.user.id;
-  try {
-    const result = await db.query(
-      `UPDATE sell SET status = 'PRESENT' WHERE product_id = $1 AND seller_id = $2 RETURNING *`,
-      [productId, seller_id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({
+      res.json({
+        success: true,
+        message: "Product and images deleted successfully.",
+      });
+    } catch (err) {
+      await db.query("ROLLBACK");
+      console.error("Error deleting product:", err);
+      res.status(500).json({
         success: false,
-        message: "Product not found",
+        message: "Server error while deleting product.",
       });
     }
-
-    return res.json({
-      success: true,
-      message: "Product restored successfully",
-    });
-  } catch (error) {
-    console.error("Error restoring product:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
   }
-});
+);
+
+//to restore the product
+app.post(
+  "/SellerPage/restoreProduct/:id",
+  isAuthenticated,
+  async (req, res) => {
+    const productId = req.params.id;
+    const seller_id = req.user.id;
+    try {
+      const result = await db.query(
+        `UPDATE sell SET status = 'PRESENT' WHERE product_id = $1 AND seller_id = $2 RETURNING *`,
+        [productId, seller_id]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Product restored successfully",
+      });
+    } catch (error) {
+      console.error("Error restoring product:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+);
 
 // seller info fetching
 
@@ -1581,7 +1683,9 @@ app.get("/api/seller/ratings", async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "No reviews found for this seller" });
+      return res
+        .status(404)
+        .json({ message: "No reviews found for this seller" });
     }
 
     res.json({
@@ -1592,7 +1696,6 @@ app.get("/api/seller/ratings", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 ///seller profile update _-------------------
 app.put("/SellerEditProfile", isAuthenticated, async (req, res) => {
@@ -1707,7 +1810,7 @@ app.post("/api/orders", isAuthenticated, async (req, res) => {
 
 app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
   const { address, orderId } = req.body;
- // console.log(req.body);
+  // console.log(req.body);
 
   try {
     const region = address.region;
@@ -1721,12 +1824,10 @@ app.post("/deliveryman/sendproposal", isAuthenticated, async (req, res) => {
     );
 
     if (deliverymen.rowCount === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          error: "No delivery men found in this region.",
-        });
+      return res.status(404).json({
+        success: false,
+        error: "No delivery men found in this region.",
+      });
     }
 
     // 2. Send proposals to each deliveryman
@@ -1824,7 +1925,6 @@ app.post("/respond", isAuthenticated, async (req, res) => {
    VALUES ($1, CURRENT_TIMESTAMP, $2, 'CUSTOMER', $3)`,
         [message, customer.rows[0].customer_id, orderId]
       );
-
     }
 
     await db.query("COMMIT");
@@ -1836,7 +1936,7 @@ app.post("/respond", isAuthenticated, async (req, res) => {
   }
 });
 
-app.post('/mark-delivered', async (req, res) => {
+app.post("/mark-delivered", async (req, res) => {
   const { orderId } = req.body;
 
   if (!orderId) {
@@ -1845,28 +1945,29 @@ app.post('/mark-delivered', async (req, res) => {
 
   try {
     // Update payment status
-    await db.query(
-      'UPDATE payment SET status = $1 WHERE order_id = $2',
-      ['SUCCESSFUL', orderId]
-    );
+    await db.query("UPDATE payment SET status = $1 WHERE order_id = $2", [
+      "SUCCESSFUL",
+      orderId,
+    ]);
 
     // Update customer_order status
     await db.query(
-      'UPDATE customer_order SET status = $1 WHERE order_id = $2',
-      ['SUCCESSFUL', orderId]
+      "UPDATE customer_order SET status = $1 WHERE order_id = $2",
+      ["SUCCESSFUL", orderId]
     );
 
-     await db.query(
-      'UPDATE delivery_proposal SET status = $1 WHERE order_id = $2',
-      ['SUCCESSFUL', orderId]
+    await db.query(
+      "UPDATE delivery_proposal SET status = $1 WHERE order_id = $2",
+      ["SUCCESSFUL", orderId]
     );
-    res.status(200).json({ message: 'Order marked as delivered successfully.' });
+    res
+      .status(200)
+      .json({ message: "Order marked as delivered successfully." });
   } catch (err) {
-    console.error('Error marking as delivered:', err);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error marking as delivered:", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 
 //payment method
 app.use(
@@ -1936,17 +2037,26 @@ app.post("/ssl-request", async (req, res) => {
       .then((apiResponse) => {
         const GatewayPageURL = apiResponse.GatewayPageURL;
 
-      if (GatewayPageURL) {
-        //console.log("Redirecting to:", GatewayPageURL);
-        return res.status(200).json({ GatewayPageURL });
-      } else {
-        console.error("No Gateway URL in response");
-        return res.status(500).json({ message: "SSLCommerz failed to generate payment link" });
-      }
-    }).catch(err => {
-      console.error("SSLCommerz error:", err.response?.data || err.message || err);
-      res.status(500).json({ message: "Payment initialization failed", error: err.message });
-    });
+        if (GatewayPageURL) {
+          //console.log("Redirecting to:", GatewayPageURL);
+          return res.status(200).json({ GatewayPageURL });
+        } else {
+          console.error("No Gateway URL in response");
+          return res
+            .status(500)
+            .json({ message: "SSLCommerz failed to generate payment link" });
+        }
+      })
+      .catch((err) => {
+        console.error(
+          "SSLCommerz error:",
+          err.response?.data || err.message || err
+        );
+        res.status(500).json({
+          message: "Payment initialization failed",
+          error: err.message,
+        });
+      });
   } catch (err) {
     console.error("Unexpected error in /ssl-request:", err);
     res.status(500).json({ message: "Unexpected error" });
@@ -1968,7 +2078,7 @@ app.post("/ssl-payment-success", async (req, res) => {
     );
 
     await db.query(
-      `Update payment set status ='successful' where order_id=$1`,
+      `Update payment set status ='SUCCESSFUL' where order_id=$1`,
       [orderId]
     );
 
@@ -2074,12 +2184,10 @@ app.get("/api/top-sellers", async (req, res) => {
     // Log the error for debugging purposes on the server.
     console.error("Error fetching top sellers:", err);
     // Send a 500 Internal Server Error response to the client.
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching top sellers.",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching top sellers.",
+    });
   }
 });
 
@@ -2136,7 +2244,7 @@ app.get("/api/v1/productFilter", async (req, res) => {
           ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id`
           : ""
       }
-      WHERE 1=1
+      WHERE 1=1 and s.status = 'PRESENT'
     `;
 
     const queryParams = [];
@@ -2202,7 +2310,6 @@ app.get("/api/v1/productFilter", async (req, res) => {
         paramCount++;
       }
     }
-
 
     // UPDATED: Add discount range filter (both min and max)
     if (minDiscount && !isNaN(minDiscount)) {
@@ -2285,18 +2392,17 @@ app.get("/api/v1/productFilter", async (req, res) => {
   }
 });
 
-
 ///antor change for seller product filter
 app.get("/api/v1/sellerProductFilter", async (req, res) => {
   try {
     const {
-      minPrice,     // NEW: Add minPrice
+      minPrice, // NEW: Add minPrice
       maxPrice,
       categories,
       stockStatus,
       ratings,
       search,
-      minDiscount,  // NEW: Add minDiscount
+      minDiscount, // NEW: Add minDiscount
       maxDiscount,
       sellerId,
     } = req.query;
@@ -2337,7 +2443,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
         FROM image
         ORDER BY product_id, image_id
       ) i ON p.product_id = i.product_id
-      WHERE 1=1
+      WHERE 1=1 AND s.status = 'PRESENT'
     `;
 
     const queryParams = [];
@@ -2361,7 +2467,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       queryParams.push(Number(minPrice));
       paramCount++;
     }
-    
+
     if (maxPrice && !isNaN(maxPrice) && Number(maxPrice) > 0) {
       query += ` AND s.selling_price <= $${paramCount}`;
       queryParams.push(Number(maxPrice));
@@ -2425,7 +2531,7 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
       queryParams.push(Number(minDiscount));
       paramCount++;
     }
-    
+
     if (maxDiscount && !isNaN(maxDiscount) && Number(maxDiscount) > 0) {
       query += ` AND s.discount <= $${paramCount}`;
       queryParams.push(Number(maxDiscount));
@@ -2434,9 +2540,12 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
 
     // Default sorting
     let orderByClause = ` ORDER BY p.product_id DESC`;
-    
+
     // Sort by discount if any discount filter is applied
-    if ((minDiscount && !isNaN(minDiscount)) || (maxDiscount && !isNaN(maxDiscount))) {
+    if (
+      (minDiscount && !isNaN(minDiscount)) ||
+      (maxDiscount && !isNaN(maxDiscount))
+    ) {
       orderByClause = ` ORDER BY s.discount DESC`;
     }
 
@@ -2479,27 +2588,30 @@ app.get("/api/v1/sellerProductFilter", async (req, res) => {
     });
   }
 });
+app.get(
+  "/api/v1/sellerSellingHistory",
+  isAuthenticated,
+  authorizeRoles("seller"),
+  async (req, res) => {
+    try {
+      const { sortBy, month, status } = req.query;
+      const sellerId = req.user.id;
 
-app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'), async (req, res) => {
-  try {
-    const { sortBy, month, status } = req.query;
-    const sellerId = req.user.id;
+      if (!sellerId) {
+        return res.status(400).json({
+          status: "error",
+          message: "Seller ID is required for fetching selling history.",
+        });
+      }
 
-    if (!sellerId) {
-      return res.status(400).json({
-        status: "error",
-        message: "Seller ID is required for fetching selling history.",
-      });
-    }
-
-    let query = `
+      let query = `
       SELECT 
         p.product_id,
         p.product_name,
         c.category_name,
         SUM(oi.quantity) AS total_quantity_sold
       FROM sell s
-      JOIN order_item oi ON s.product_id = oi.product_id
+      left JOIN order_item oi ON s.product_id = oi.product_id
       JOIN product p ON p.product_id = s.product_id
       JOIN category c ON p.category_id = c.category_id
       JOIN customer_order o ON o.order_id = oi.order_id
@@ -2507,51 +2619,54 @@ app.get("/api/v1/sellerSellingHistory", isAuthenticated, authorizeRoles('seller'
       WHERE s.seller_id = $1 AND s.status = $2
     `;
 
-    const queryParams = [sellerId, status];
-    let paramIndex = 3;
+      const queryParams = [sellerId, status];
+      let paramIndex = 3;
 
-    if (month) {
-      query += ` AND TO_CHAR(pay.payment_date, 'YYYY-MM') = $${paramIndex}`;
-      queryParams.push(month);
-      paramIndex++;
-    }
+      if (month) {
+        query += ` AND TO_CHAR(pay.payment_date, 'YYYY-MM') = $${paramIndex}`;
+        queryParams.push(month);
+        paramIndex++;
+      }
 
-    query += `
+      query += `
       GROUP BY p.product_id, p.product_name, c.category_name
     `;
 
-    switch (sortBy) {
-      case "highest_quantity":
-        query += ` ORDER BY total_quantity_sold DESC`;
-        break;
-      case "lowest_quantity":
-        query += ` ORDER BY total_quantity_sold ASC`;
-        break;
-      default:
-        query += ` ORDER BY p.product_id DESC`;
-        break;
+      switch (sortBy) {
+        case "highest_quantity":
+          query += ` ORDER BY total_quantity_sold DESC`;
+          break;
+        case "lowest_quantity":
+          query += ` ORDER BY total_quantity_sold ASC`;
+          break;
+        default:
+          query += ` ORDER BY p.product_id DESC`;
+          break;
+      }
+
+      const results = await db.query(query, queryParams);
+
+      res.json({
+        status: "success",
+        count: results.rows.length,
+        totalOrders: results.rows.reduce(
+          (sum, row) => sum + parseInt(row.total_quantity_sold),
+          0
+        ),
+        sellingHistory: results.rows,
+      });
+
+      // console.log(Fetched ${results.rows.length} selling history records for month ${month || "ALL"}.);
+    } catch (err) {
+      console.error("Error fetching seller selling history:", err);
+      res.status(500).json({
+        status: "error",
+        message: "Failed to fetch selling history",
+        error: err.message,
+      });
     }
-
-    const results = await db.query(query, queryParams);
-
-    res.json({
-      status: "success",
-      count: results.rows.length,
-      totalOrders: results.rows.reduce((sum, row) => sum + parseInt(row.total_quantity_sold), 0),
-      sellingHistory: results.rows,
-    });
-
-    // console.log(`Fetched ${results.rows.length} selling history records for month ${month || "ALL"}.`);
-
-  } catch (err) {
-    console.error("Error fetching seller selling history:", err);
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch selling history",
-      error: err.message,
-    });
   }
-});
+);
 
 // fetch all orders for seller
 // Add this new endpoint to your server.js file
@@ -2609,7 +2724,6 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
     });
 
     // console.log(`Fetched ${ordersThisMonth} orders this month for seller ${sellerId}.`);
-
   } catch (err) {
     console.error("Error fetching orders this month:", err);
     res.status(500).json({
@@ -2620,16 +2734,15 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
   }
 });
 
-
 // product sections fetching antor change
 // Endpoint for Popular Products
 // Fetches products that have been bought most frequently in the last month.
-app.get('/api/v1/popular',  async (req, res) => {
-    try {
-        // customerId is not directly used in this query, but isAuthenticated ensures user is logged in if needed for context
-        // const customerId = req.user.id; 
+app.get("/api/v1/popular", async (req, res) => {
+  try {
+    // customerId is not directly used in this query, but isAuthenticated ensures user is logged in if needed for context
+    // const customerId = req.user.id;
 
-        const query = `
+    const query = `
             SELECT
                 p.product_id,
                 p.product_name,
@@ -2657,6 +2770,7 @@ app.get('/api/v1/popular',  async (req, res) => {
                 -- Filter for purchases within the last month and successful payments
                 co.date >= NOW() - INTERVAL '1 month'
                 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                AND sl.STATUS = 'PRESENT'
             GROUP BY
                 p.product_id, p.product_name, p.short_des
             ORDER BY
@@ -2664,20 +2778,19 @@ app.get('/api/v1/popular',  async (req, res) => {
             LIMIT 30;
         `;
 
-        const result = await db.query(query);
-        res.status(200).json({ products: result.rows });
-
-    } catch (error) {
-        console.error("Error fetching popular products:", error);
-        res.status(500).json({ message: "Failed to fetch popular products." });
-    }
+    const result = await db.query(query);
+    res.status(200).json({ products: result.rows });
+  } catch (error) {
+    console.error("Error fetching popular products:", error);
+    res.status(500).json({ message: "Failed to fetch popular products." });
+  }
 });
 
 // Endpoint for Newest Arrivals
 // Fetches products that have been uploaded most recently.
-app.get('/api/v1/newest',  async (req, res) => {
-    try {
-        const query = `
+app.get("/api/v1/newest", async (req, res) => {
+  try {
+    const query = `
             SELECT
                 p.product_id,
                 p.product_name,
@@ -2693,6 +2806,8 @@ app.get('/api/v1/newest',  async (req, res) => {
                 image i ON p.product_id = i.product_id
             LEFT JOIN
                 sell sl ON p.product_id = sl.product_id
+            WHERE
+                sl.STATUS = 'PRESENT' -- Ensure only active products are considered
             GROUP BY
                 p.product_id, p.product_name, p.short_des, sl.sell_date -- Group by all non-aggregated columns
             ORDER BY
@@ -2700,31 +2815,30 @@ app.get('/api/v1/newest',  async (req, res) => {
             LIMIT 30;
         `;
 
-        const result = await db.query(query);
-        res.status(200).json({ products: result.rows });
-
-    } catch (error) {
-        console.error("Error fetching newest arrivals:", error);
-        res.status(500).json({ message: "Failed to fetch newest arrivals." });
-    }
+    const result = await db.query(query);
+    res.status(200).json({ products: result.rows });
+  } catch (error) {
+    console.error("Error fetching newest arrivals:", error);
+    res.status(500).json({ message: "Failed to fetch newest arrivals." });
+  }
 });
 
 // Endpoint for Recommended Products
 // Fetches products in categories previously bought or wishlisted by the customer (if authenticated),
 // or popular products (if unauthenticated).
-app.get('/api/v1/recommended', async (req, res) => {
-    try {
-        let query;
-        let queryParams = [];
+app.get("/api/v1/recommended", async (req, res) => {
+  try {
+    let query;
+    let queryParams = [];
 
-        // Check if the user is authenticated (isAuthenticated middleware has already run)
-        // req.user will be populated if isAuthenticated was successful.
-        if (req.user && req.user.id) {
-            const customerId = req.user.id;
-            queryParams.push(customerId);
+    // Check if the user is authenticated (isAuthenticated middleware has already run)
+    // req.user will be populated if isAuthenticated was successful.
+    if (req.user && req.user.id) {
+      const customerId = req.user.id;
+      queryParams.push(customerId);
 
-            // Personalized Recommendation Query (for authenticated users)
-            query = `
+      // Personalized Recommendation Query (for authenticated users)
+      query = `
                 WITH UserInterestedCategories AS (
                     -- Get categories from previously bought products
                     SELECT DISTINCT p.category_id
@@ -2774,19 +2888,19 @@ app.get('/api/v1/recommended', async (req, res) => {
                 WHERE
                     p.category_id IN (SELECT category_id FROM UserInterestedCategories WHERE category_id IS NOT NULL)
                     AND p.product_id NOT IN (SELECT product_id FROM UserKnownProducts)
+                    AND sl.STATUS = 'PRESENT' -- Ensure only active products are considered
                 GROUP BY
                     p.product_id, p.product_name, p.short_des
                 ORDER BY
                     sl.sell_date DESC -- Prioritize more recently added products within recommended categories
                 LIMIT 30;
             `;
-            // The customerId needs to be passed for each subquery where it's used.
-            // For the current structure with CTEs, $1 will be repeated.
-            queryParams = [customerId, customerId, customerId, customerId]; 
-
-        } else {
-            // Popular Products Query (for unauthenticated users)
-            query = `
+      // The customerId needs to be passed for each subquery where it's used.
+      // For the current structure with CTEs, $1 will be repeated.
+      queryParams = [customerId, customerId, customerId, customerId];
+    } else {
+      // Popular Products Query (for unauthenticated users)
+      query = `
                 SELECT
                     p.product_id,
                     p.product_name,
@@ -2809,26 +2923,24 @@ app.get('/api/v1/recommended', async (req, res) => {
                 WHERE
                     co.date >= NOW() - INTERVAL '1 month'
                     AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                    AND sl.STATUS = 'PRESENT' -- Ensure only active products are considered
                 GROUP BY
                     p.product_id, p.product_name, p.short_des
                 ORDER BY
                     purchase_count DESC
                 LIMIT 30;
             `;
-            // No specific customerId param needed for this query
-            queryParams = []; 
-        }
-
-        const result = await db.query(query, queryParams);
-        res.status(200).json({ products: result.rows });
-
-    } catch (error) {
-        console.error("Error fetching recommended products:", error);
-        res.status(500).json({ message: "Failed to fetch recommended products." });
+      // No specific customerId param needed for this query
+      queryParams = [];
     }
+
+    const result = await db.query(query, queryParams);
+    res.status(200).json({ products: result.rows });
+  } catch (error) {
+    console.error("Error fetching recommended products:", error);
+    res.status(500).json({ message: "Failed to fetch recommended products." });
+  }
 });
-
-
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
