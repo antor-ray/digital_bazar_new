@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const fs = require("fs");
 const bodyParser = require("body-parser");
+const bcrypt = require("bcryptjs");
 const SSLCommerzPayment = require("sslcommerz-lts");
 
 const path = require("path");
@@ -27,6 +28,7 @@ const cookieParser = require("cookie-parser");
 const authorizeRoles = require("./middleware/authorizeRoles");
 const { rejects } = require("assert");
 const status = require("statuses");
+const { Console, error } = require("console");
 app.use(cookieParser());
 
 app.use("/images", express.static(path.join(__dirname, "/images")));
@@ -38,45 +40,54 @@ app.post("/login", async (req, res) => {
     let user = null;
     let role = null;
     let userIdField = null; // To store the specific ID field name (e.g., 'customer_id')
+    let name = null;
 
     // 1. Check Customer table
     const customerResult = await db.query(
-      "SELECT customer_id, email, password, customer_name FROM customer WHERE email = $1 AND password = $2",
-      [email, password]
+      "SELECT customer_id, email, password, customer_name FROM customer WHERE email = $1 ",
+      [email]
     );
 
     if (customerResult.rows.length > 0) {
       user = customerResult.rows[0];
       role = "customer";
       userIdField = "customer_id";
+      name = user.customer_name; // Store customer name
     } else {
       // 2. If not a customer, check Seller table
       const sellerResult = await db.query(
-        "SELECT seller_id, email, password, business_name AS name FROM seller WHERE email = $1 AND password = $2",
-        [email, password]
+        "SELECT seller_id, email, password, business_name AS name FROM seller WHERE email = $1 ",
+        [email]
       );
 
       if (sellerResult.rows.length > 0) {
         user = sellerResult.rows[0];
         role = "seller";
         userIdField = "seller_id";
+        name = user.business_name; // Store seller name
       } else {
         // 3. If not a seller, check Delivery Man table
         const deliveryManResult = await db.query(
-          "SELECT id, email, password, name FROM delivery_man WHERE email = $1 AND password = $2",
-          [email, password]
+          "SELECT id, email, password, name FROM delivery_man WHERE email = $1",
+          [email]
         );
 
         if (deliveryManResult.rows.length > 0) {
           user = deliveryManResult.rows[0];
           role = "delivery_man";
           userIdField = "id";
+          name = user.name;
         }
       }
     }
 
     // If no user found in any table
     if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -99,8 +110,9 @@ app.post("/login", async (req, res) => {
       .json({
         token: token,
         role: role,
+        name: name,
         email: user.email,
-        id: user[userIdField], // Use the specific ID field
+        id: user[userIdField],
       });
   } catch (err) {
     console.error("Login error:", err);
@@ -144,12 +156,15 @@ app.post("/register", async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newCustomer = await db.query(
       "INSERT INTO customer (email, customer_name, password, city, region, detail_address, phone_number) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
       [
         email,
         customer_name,
-        password,
+        hashedPassword,
         city,
         region,
         detail_address,
@@ -255,21 +270,17 @@ app.put(
 //   res.json({ notifications: result.rows });
 // });
 
-app.get(
-  "/api/notifications",
-  isAuthenticated,
-  authorizeRoles("customer"),
-  async (req, res) => {
+app.post(
+  "/api/notifications", isAuthenticated, async (req, res) => {
     try {
-      const customer_id = req.user.id;
-
+      const id = req.user.id;
+      const role = req.body.role;
       const result = await db.query(
         `SELECT * FROM notification
-         WHERE user_id = $1 AND user_type = 'CUSTOMER'
+         WHERE user_id = $1 AND user_type = $2
          ORDER BY created_at DESC`,
-        [customer_id]
+        [id, role.toUpperCase()]
       );
-
       res.json({ notifications: result.rows });
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -314,6 +325,119 @@ app.post("/DeliveryManlogin", async (req, res) => {
   }
 });
 
+app.get("/deliveryManHistory", isAuthenticated, async (req, res) => {
+  try {
+    const deliveryManId = req.user.id; // Assuming req.user.id holds the delivery man's ID
+    const { month, sortBy } = req.query;
+
+    let baseQuery = `
+      SELECT
+          co.order_id,
+          co.date AS orderDate,
+          co.total_cost AS totalOrderCost,
+          co.date AS deliveryDate,
+          co.status,
+          c.customer_name AS customerName,
+          c.phone_number AS customerPhone,
+          co.address AS customerAddress,
+          JSON_AGG(
+              JSON_BUILD_OBJECT(
+                  'productName', p.product_name,
+                  'productId', p.product_id,
+                  'categoryName', cat.category_name,
+                  'quantity', oi.quantity,
+                  'price', sl.selling_price,
+                  'sellerName', s.business_name,
+                  'sellerPhone', s.phone_number
+              ) ORDER BY p.product_name
+          ) AS items
+      FROM
+          customer_order co
+      JOIN payment pay ON co.order_id = pay.order_id
+      JOIN order_item oi ON co.order_id = oi.order_id
+      LEFT JOIN product p ON oi.product_id = p.product_id
+      LEFT JOIN category cat ON p.category_id = cat.category_id
+      LEFT JOIN sell sl ON p.product_id = sl.product_id
+      LEFT JOIN seller s ON sl.seller_id = s.seller_id
+      JOIN customer c ON co.customer_id = c.customer_id
+      WHERE
+          co.delivery_man_id = $1
+          AND pay.status = 'SUCCESSFUL'
+    `;
+
+    let queryParams = [deliveryManId];
+    let paramIndex = 2; // Start parameters from $2 for month filtering
+
+    // Helper to add month filter to the query
+    const addMonthFilter = (query) => {
+      if (month) {
+        // month will be in 'YYYY-MM' format, e.g., '2023-10'
+        query += ` AND TO_CHAR(co.date, 'YYYY-MM') = $${paramIndex}`;
+        queryParams.push(month); // Push the entire 'YYYY-MM' string
+        paramIndex++;
+      }
+      return query;
+    };
+
+    baseQuery = addMonthFilter(baseQuery);
+
+    baseQuery += `
+      GROUP BY
+          co.order_id,
+          co.date,
+          co.total_cost,
+          co.date,
+          co.status,
+          c.customer_name,
+          c.phone_number,
+          co.address
+    `;
+
+    // Apply sorting for the delivery history view
+    if (sortBy === "newest_date") {
+      baseQuery += ` ORDER BY co.date DESC`;
+    } else if (sortBy === "oldest_date") {
+      baseQuery += ` ORDER BY co.date ASC`;
+    } else if (sortBy === "highest_total") {
+      baseQuery += ` ORDER BY co.total_cost DESC`;
+    } else if (sortBy === "lowest_total") {
+      baseQuery += ` ORDER BY co.total_cost ASC`;
+    } else if (sortBy === "delivery_date_newest") { // New sort option for delivery date
+        baseQuery += ` ORDER BY co.date DESC NULLS LAST`;
+    } else if (sortBy === "delivery_date_oldest") { // New sort option for delivery date
+        baseQuery += ` ORDER BY co.date ASC NULLS FIRST`;
+    }
+    else {
+      baseQuery += ` ORDER BY co.date DESC`; // Default sort
+    }
+
+    const result = await db.query(baseQuery, queryParams);
+    const deliveryHistory = result.rows;
+    const totalDeliveries = deliveryHistory.length; // Count of distinct orders delivered
+
+    if (!deliveryHistory || deliveryHistory.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        deliveryHistory: [],
+        totalDeliveries: 0,
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      deliveryHistory: deliveryHistory,
+      totalDeliveries: totalDeliveries,
+    });
+
+  } catch (error) {
+    console.error("Error fetching delivery man history:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve delivery history. Please try again later.",
+    });
+  }
+});
+
 app.post("/deliveryman/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
@@ -330,9 +454,12 @@ app.post("/registerDeliveryMan", async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newCustomer = await db.query(
       "INSERT INTO delivery_man (name,email,phone_number,region,city,password) VALUES ($1, $2, $3, $4, $5,$6) RETURNING *",
-      [name, email, phone_number, region, city, password]
+      [name, email, phone_number, region, city, hashedPassword]
     );
 
     res.status(201).json({
@@ -461,7 +588,7 @@ app.get("/api/v1/products/:id", async (req, res) => {
   }
 });
 
-app.get("/cartItems", isAuthenticated, async (req, res) => {
+app.get("/cartItems", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   try {
     const customer_id = req.user.id;
     const cartResult = await db.query(
@@ -489,7 +616,7 @@ app.get("/cartItems", isAuthenticated, async (req, res) => {
   }
 });
 
-app.post("/add_to_cart", isAuthenticated, async (req, res) => {
+app.post("/add_to_cart", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const { product_id } = req.body;
   const customer_id = req.user.id;
   // console.log(customer_id);
@@ -505,6 +632,12 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
     }
     const cart_id = cartResult.rows[0].cart_id;
 
+    // Check if the product is already in the cart
+    const existingItem = await db.query("SELECT * FROM cart_item WHERE product_id = $1 AND cart_id = $2", [product_id, cart_id]);
+    if (existingItem.rows.length > 0) {
+      return res.status(402).json({ message: "Product already in cart" });
+    }
+
     await db.query("insert into cart_item(product_id,cart_id) values($1,$2)", [
       product_id,
       cart_id,
@@ -512,7 +645,39 @@ app.post("/add_to_cart", isAuthenticated, async (req, res) => {
     res.status(200).json({ message: "Added to cart" });
   } catch (err) {
     console.error("Error adding to cart:", err);
-    res.status(500).json({ message: "Failed to add to cart" });
+    res.status(403).json({ message: "Failed to add to cart" });
+  }
+});
+
+app.post("/add_to_wishlist", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
+  const { product_id } = req.body;
+  const customer_id = req.user.id;
+  try {
+    const wishListResult = await db.query(
+      "select wishlist_id from customer where customer_id=$1",
+      [customer_id]
+    );
+    if (wishListResult.rows.length == 0) {
+      return res
+        .status(400)
+        .json({ message: "wishlist not found for this customer" });
+    }
+    const wishlist_id = wishListResult.rows[0].wishlist_id;
+
+    // Check if the product is already in the wishlist
+    const existingItem = await db.query("SELECT * FROM wish_item WHERE product_id = $1 AND wishlist_id = $2", [product_id, wishlist_id]);
+    if (existingItem.rows.length > 0) {
+      return res.status(409).json({ message: "Product already in wishlist" });
+    }
+
+    await db.query(
+      "insert into wish_item(product_id, wishlist_id) values($1,$2)",
+      [product_id, wishlist_id]
+    );
+    res.status(200).json({ message: "Added to wishList" });
+  } catch (err) {
+    console.error("Error adding to wishlist:", err);
+    res.status(500).json({ message: "Failed to add to wishList" });
   }
 });
 
@@ -586,6 +751,26 @@ app.post(
           "UPDATE sell SET stock = stock - $1 WHERE product_id = $2",
           [quantity, product_id]
         );
+
+
+        //for sending seller notification
+        const sellerResult = await db.query(
+          "SELECT seller_id FROM sell WHERE product_id = $1", [product_id]
+        );
+
+        const sellerId = sellerResult.rows[0].seller_id;
+
+        const productResult = await db.query(
+          "SELECT product_name FROM product WHERE product_id = $1", [product_id]
+        );
+
+        const product_name = productResult.rows[0].product_name;
+
+        await db.query(
+          "insert into notification (user_id, user_type, message,order_id) values ($1, $2, $3,$4)",
+          [sellerId, "SELLER", `A new order has been placed for product name ${product_name} with quantity ${quantity}.`, orderId]
+        );
+        //end code for sending seller notification
       }
 
       await db.query(`DELETE FROM cart_item WHERE cart_id = $1`, [cart_id]);
@@ -615,7 +800,7 @@ app.get("/api/v1/paymentMethods", async (req, res) => {
   }
 });
 
-app.post("/orderItems", async (req, res) => {});
+app.post("/orderItems", async (req, res) => { });
 
 app.get("/categoryProducts/:categoryName", async (req, res) => {
   const categoryName = req.params.categoryName;
@@ -668,6 +853,17 @@ app.post(
         return res
           .status(409)
           .json({ error: "You have already reviewed this product." });
+      }
+
+      //is it ordered by this customer?
+      const orderCheck = await db.query(
+        `select * from customer_order co
+         join order_item oi on co.order_id=oi.order_id
+         where co.customer_id=$1 and oi.product_id=$2`,
+        [customerId, productId]
+      );
+      if (orderCheck.rows.length === 0) {
+        return res.status(403).json({ error: "You can only review products you have purchased." });
       }
 
       // Insert the new review
@@ -758,7 +954,7 @@ app.get("/customerHistory", isAuthenticated, async (req, res) => {
                     seller s ON sl.seller_id = s.seller_id
                 WHERE
                     co.customer_id = $1
-                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'SUCCESSFUL')
             `;
 
       baseQuery = addMonthFilter(baseQuery);
@@ -794,7 +990,7 @@ app.get("/customerHistory", isAuthenticated, async (req, res) => {
                     seller s ON sl.seller_id = s.seller_id
                 WHERE
                     co.customer_id = $1
-                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'SUCCESSFUL')
             `;
 
       baseQuery = addMonthFilter(baseQuery);
@@ -841,7 +1037,7 @@ app.get("/customerHistory", isAuthenticated, async (req, res) => {
                 LEFT JOIN delivery_man dm ON co.delivery_man_id = dm.id
                 WHERE
                     co.customer_id = $1
-                    AND pay.status = 'successful'
+                    AND pay.status = 'SUCCESSFUL'
             `;
 
       baseQuery = addMonthFilter(baseQuery);
@@ -914,7 +1110,7 @@ app.get("/customerHistory", isAuthenticated, async (req, res) => {
 
 // wishlist items fetching-------------------------------
 
-app.get("/api/v1/wishlist", isAuthenticated, async (req, res) => {
+app.get("/api/v1/wishlist", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
   const customerId = req.user.id;
   //console.log(customerId);
 
@@ -1002,7 +1198,7 @@ app.get("/api/v1/products/similar/:id", async (req, res) => {
 ///antor change remove from wishlist--------------------------------------------
 app.delete(
   "/api/v1/wishlist/remove/:productId",
-  isAuthenticated,
+  isAuthenticated, authorizeRoles('customer'),
   async (req, res) => {
     const productId = req.params.productId;
     const customerId = req.user.id;
@@ -1157,12 +1353,15 @@ app.post("/SellerRegister", async (req, res) => {
       });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    console.log(hashedPassword);
     // Insert new seller
     const result = await db.query(
       `INSERT INTO seller (email, password, business_name, about, phone_number, address)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [email, password, business_name, about, phone_number, address]
+      [email, hashedPassword, business_name, about, phone_number, address]
     );
 
     res.status(201).json({
@@ -1960,6 +2159,16 @@ app.post("/mark-delivered", async (req, res) => {
       "UPDATE delivery_proposal SET status = $1 WHERE order_id = $2",
       ["SUCCESSFUL", orderId]
     );
+
+    const customerResult = await db.query(
+      "SELECT customer_id FROM customer_order WHERE order_id = $1", [orderId]
+    );
+    const customerId = customerResult.rows[0].customer_id;
+
+    await db.query(
+      "INSERT INTO notification (message, created_at, user_id, user_type, order_id) VALUES ($1, CURRENT_TIMESTAMP, $2, 'CUSTOMER', $3)",
+      ['Thank you for your purchase! Your order has been delivered successfully.', customerId, orderId]
+    );
     res
       .status(200)
       .json({ message: "Order marked as delivered successfully." });
@@ -2129,7 +2338,7 @@ app.get("/api/top-sellers", async (req, res) => {
       JOIN
           sell s ON oi.product_id = s.product_id
       WHERE
-          p.status = 'successful'
+          p.status = 'SUCCESSFUL'
       GROUP BY
           oi.product_id, s.seller_id;
     `);
@@ -2239,10 +2448,9 @@ app.get("/api/v1/productFilter", async (req, res) => {
         FROM image
         ORDER BY product_id, image_id
       ) i ON p.product_id = i.product_id
-      ${
-        sellerIds
-          ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id`
-          : ""
+      ${sellerIds
+        ? `JOIN seller seller_table ON s.seller_id = seller_table.seller_id`
+        : ""
       }
       WHERE 1=1 and s.status = 'PRESENT'
     `;
@@ -2346,24 +2554,20 @@ app.get("/api/v1/productFilter", async (req, res) => {
       // Only apply other sortBy if discount filters are NOT used
       switch (sortBy) {
         case "price":
-          orderByClause = ` ORDER BY s.selling_price ${
-            sortDirection === "asc" ? "ASC" : "DESC"
-          }`;
+          orderByClause = ` ORDER BY s.selling_price ${sortDirection === "asc" ? "ASC" : "DESC"
+            }`;
           break;
         case "name":
-          orderByClause = ` ORDER BY p.product_name ${
-            sortDirection === "asc" ? "ASC" : "DESC"
-          }`;
+          orderByClause = ` ORDER BY p.product_name ${sortDirection === "asc" ? "ASC" : "DESC"
+            }`;
           break;
         case "rating":
-          orderByClause = ` ORDER BY average_rating ${
-            sortDirection === "asc" ? "ASC" : "DESC"
-          }`;
+          orderByClause = ` ORDER BY average_rating ${sortDirection === "asc" ? "ASC" : "DESC"
+            }`;
           break;
         case "discount":
-          orderByClause = ` ORDER BY s.discount ${
-            sortDirection === "asc" ? "ASC" : "DESC"
-          }`;
+          orderByClause = ` ORDER BY s.discount ${sortDirection === "asc" ? "ASC" : "DESC"
+            }`;
           break;
         default:
           orderByClause = ` ORDER BY p.product_id DESC`; // Fallback
@@ -2705,7 +2909,7 @@ app.get("/api/v1/sellerStats/ordersThisMonth", async (req, res) => {
       WHERE s.seller_id = $1
         AND pmt.payment_date >= $2
         AND pmt.payment_date <= $3
-        AND pmt.status = 'successful';
+        AND pmt.status = 'SUCCESSFUL';
     `;
 
     const queryParams = [sellerId, firstDayOfMonth, lastDayOfMonth];
@@ -2769,7 +2973,7 @@ app.get("/api/v1/popular", async (req, res) => {
             WHERE
                 -- Filter for purchases within the last month and successful payments
                 co.date >= NOW() - INTERVAL '1 month'
-                AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+                AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'SUCCESSFUL')
                 AND sl.STATUS = 'PRESENT'
             GROUP BY
                 p.product_id, p.product_name, p.short_des
@@ -2826,120 +3030,79 @@ app.get("/api/v1/newest", async (req, res) => {
 // Endpoint for Recommended Products
 // Fetches products in categories previously bought or wishlisted by the customer (if authenticated),
 // or popular products (if unauthenticated).
-app.get("/api/v1/recommended", async (req, res) => {
+// or popular products (if unauthenticated).
+app.get("/api/v1/recommended", isAuthenticated, async (req, res) => {
   try {
-    let query;
-    let queryParams = [];
+    const customerId = req.user.id; // isAuthenticated middleware should ensure req.user exists
+    console.log("Fetching personalized recommendations for customerId:", customerId);
 
-    // Check if the user is authenticated (isAuthenticated middleware has already run)
-    // req.user will be populated if isAuthenticated was successful.
-    if (req.user && req.user.id) {
-      const customerId = req.user.id;
-      queryParams.push(customerId);
+    // Personalized Recommendation Query (for authenticated users)
+    const query = `
+      WITH UserInterestedCategories AS (
+          -- Get categories from previously bought products
+          SELECT DISTINCT p.category_id
+          FROM customer_order co
+          JOIN order_item oi ON co.order_id = oi.order_id
+          JOIN product p ON oi.product_id = p.product_id
+          WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'SUCCESSFUL')
 
-      // Personalized Recommendation Query (for authenticated users)
-      query = `
-                WITH UserInterestedCategories AS (
-                    -- Get categories from previously bought products
-                    SELECT DISTINCT p.category_id
-                    FROM customer_order co
-                    JOIN order_item oi ON co.order_id = oi.order_id
-                    JOIN product p ON oi.product_id = p.product_id
-                    WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+          UNION
 
-                    UNION
+          -- Get categories from products in wishlist
+          SELECT DISTINCT p.category_id
+          FROM wish_item wi
+          JOIN customer c ON wi.wishlist_id = c.wishlist_id
+          JOIN product p ON wi.product_id = p.product_id
+          WHERE c.customer_id = $1
+      ),
+      UserKnownProducts AS (
+          -- Get all product IDs the user has already bought
+          SELECT DISTINCT oi.product_id
+          FROM customer_order co
+          JOIN order_item oi ON co.order_id = oi.order_id
+          WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'SUCCESSFUL')
 
-                    -- Get categories from products in wishlist
-                    SELECT DISTINCT p.category_id
-                    FROM wish_item wi
-                    JOIN customer c ON wi.wishlist_id = c.wishlist_id
-                    JOIN product p ON wi.product_id = p.product_id
-                    WHERE c.customer_id = $1
-                ),
-                UserKnownProducts AS (
-                    -- Get all product IDs the user has already bought
-                    SELECT DISTINCT oi.product_id
-                    FROM customer_order co
-                    JOIN order_item oi ON co.order_id = oi.order_id
-                    WHERE co.customer_id = $1 AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
+          UNION
 
-                    UNION
+          -- Get all product IDs the user has in their wishlist
+          SELECT DISTINCT wi.product_id
+          FROM wish_item wi
+          JOIN customer c ON wi.wishlist_id = c.wishlist_id
+          WHERE c.customer_id = $1
+      )
+      SELECT
+          p.product_id,
+          p.product_name,
+          p.short_des,
+          COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
+          COALESCE(MAX(sl.selling_price), 0) AS selling_price,
+          COALESCE(MAX(sl.actual_price), 0) AS actual_price,
+          COALESCE(MAX(sl.discount), 0) AS discount
+      FROM
+          product p
+      LEFT JOIN
+          image i ON p.product_id = i.product_id
+      LEFT JOIN
+          sell sl ON p.product_id = sl.product_id
+      WHERE
+          p.category_id IN (SELECT category_id FROM UserInterestedCategories WHERE category_id IS NOT NULL)
+          AND p.product_id NOT IN (SELECT product_id FROM UserKnownProducts)
+          AND sl.STATUS = 'PRESENT' -- Ensure only active products are considered
+      GROUP BY
+          p.product_id, p.product_name, p.short_des, sl.sell_date
+      ORDER BY
+          sl.sell_date DESC -- Prioritize more recently added products within recommended categories
+      LIMIT 30;
+    `;
 
-                    -- Get all product IDs the user has in their wishlist
-                    SELECT DISTINCT wi.product_id
-                    FROM wish_item wi
-                    JOIN customer c ON wi.wishlist_id = c.wishlist_id
-                    WHERE c.customer_id = $1
-                )
-                SELECT
-                    p.product_id,
-                    p.product_name,
-                    p.short_des,
-                    COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
-                    COALESCE(MAX(sl.selling_price), 0) AS selling_price,
-                    COALESCE(MAX(sl.actual_price), 0) AS actual_price,
-                    COALESCE(MAX(sl.discount), 0) AS discount
-                FROM
-                    product p
-                LEFT JOIN
-                    image i ON p.product_id = i.product_id
-                LEFT JOIN
-                    sell sl ON p.product_id = sl.product_id
-                WHERE
-                    p.category_id IN (SELECT category_id FROM UserInterestedCategories WHERE category_id IS NOT NULL)
-                    AND p.product_id NOT IN (SELECT product_id FROM UserKnownProducts)
-                    AND sl.STATUS = 'PRESENT' -- Ensure only active products are considered
-                GROUP BY
-                    p.product_id, p.product_name, p.short_des
-                ORDER BY
-                    sl.sell_date DESC -- Prioritize more recently added products within recommended categories
-                LIMIT 30;
-            `;
-      // The customerId needs to be passed for each subquery where it's used.
-      // For the current structure with CTEs, $1 will be repeated.
-      queryParams = [customerId, customerId, customerId, customerId];
-    } else {
-      // Popular Products Query (for unauthenticated users)
-      query = `
-                SELECT
-                    p.product_id,
-                    p.product_name,
-                    p.short_des,
-                    COALESCE(MIN(i.image_url), 'placeholder.png') AS image_url, -- Get one image, default to placeholder
-                    COUNT(oi.product_id) AS purchase_count,
-                    COALESCE(MAX(sl.selling_price), 0) AS selling_price,
-                    COALESCE(MAX(sl.actual_price), 0) AS actual_price,
-                    COALESCE(MAX(sl.discount), 0) AS discount
-                FROM
-                    customer_order co
-                JOIN
-                    order_item oi ON co.order_id = oi.order_id
-                JOIN
-                    product p ON oi.product_id = p.product_id
-                LEFT JOIN
-                    image i ON p.product_id = i.product_id
-                LEFT JOIN
-                    sell sl ON p.product_id = sl.product_id
-                WHERE
-                    co.date >= NOW() - INTERVAL '1 month'
-                    AND EXISTS (SELECT 1 FROM payment WHERE order_id = co.order_id AND status = 'successful')
-                    AND sl.STATUS = 'PRESENT' -- Ensure only active products are considered
-                GROUP BY
-                    p.product_id, p.product_name, p.short_des
-                ORDER BY
-                    purchase_count DESC
-                LIMIT 30;
-            `;
-      // No specific customerId param needed for this query
-      queryParams = [];
-    }
-
-    const result = await db.query(query, queryParams);
+    // ONLY supply the customerId once, as all $1 references point to the same parameter.
+    const result = await db.query(query, [customerId]);
     res.status(200).json({ products: result.rows });
+    console.log("Fetched recommended products successfully.");
   } catch (error) {
     console.error("Error fetching recommended products:", error);
-    res.status(500).json({ message: "Failed to fetch recommended products." });
-  }
+    res.status(500).json({ message: "Failed to fetch recommended products." });
+  }
 });
 
 const port = process.env.PORT || 3001;

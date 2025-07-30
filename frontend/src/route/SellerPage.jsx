@@ -49,11 +49,9 @@ const SellerDashboard = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
 
-  // const filteredProducts = products.filter((product) =>
-  //   product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  // );
-
-  // Sample products data
+  // Notification state
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   const [expandedSections, setExpandedSections] = useState({
     priceRange: false,
@@ -103,6 +101,24 @@ const SellerDashboard = () => {
       setFilteredProducts(allProducts);
     }
   }, [showSidebar]);
+
+
+  // Notification functions
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.post("http://localhost:4000/api/notifications",
+        {
+          role: "seller",
+        }
+        , {
+          withCredentials: true,
+        });
+      setNotifications(res.data.notifications);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    }
+  };
+
 
   // 1. Fix the fetchSellerProducts function:
   const fetchSellerProducts = async () => {
@@ -597,6 +613,16 @@ const SellerDashboard = () => {
           </div>
 
           <div className="headerActions">
+            <span
+              className="nav-action-item"
+              onClick={() => {
+                fetchNotifications();
+                setShowNotifications(!showNotifications);
+              }}
+            >
+              🔔 Notifications
+            </span>
+
             <button
               onClick={() => setShowAddProduct(true)}
               className="btn btnPrimary"
@@ -620,6 +646,27 @@ const SellerDashboard = () => {
           </div>
         </div>
       </header>
+
+       {/* Notifications Panel */}
+      {isLoggedIn && showNotifications && (
+        <div className="notification-panel">
+          <h3>Notifications</h3>
+          {notifications.length === 0 ? (
+            <p className="no-notification">You're all caught up! 🎉</p>
+          ) : (
+            <ul>
+              {notifications.map((note) => (
+                <li key={note.notification_id} className="notification-item">
+                  <div className="notification-message">{note.message}</div>
+                  <div className="notification-time">
+                    {new Date(note.created_at).toLocaleString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="mainContainer">
@@ -650,8 +697,8 @@ const SellerDashboard = () => {
               <div className="statContent">
                 <Star className="statIcon yellow" />
                 <div>
-                 <p className="statLabel">Average Rating</p>
-                  <p className="statValue">${!isNaN(averageRating)?averageRating:"0"}</p> 
+                  <p className="statLabel">Average Rating</p>
+                  <p className="statValue">${!isNaN(averageRating) ? averageRating : "0"}</p>
                 </div>
               </div>
             </div>
@@ -684,9 +731,8 @@ const SellerDashboard = () => {
                   >
                     <h5>Discount Percentage</h5>
                     <span
-                      className={`arrow ${
-                        expandedSections.discountRange ? "expanded" : ""
-                      }`}
+                      className={`arrow ${expandedSections.discountRange ? "expanded" : ""
+                        }`}
                     >
                       ▼
                     </span>
@@ -775,9 +821,8 @@ const SellerDashboard = () => {
                   >
                     <h5>Price Range</h5>
                     <span
-                      className={`arrow ${
-                        expandedSections.priceRange ? "expanded" : ""
-                      }`}
+                      className={`arrow ${expandedSections.priceRange ? "expanded" : ""
+                        }`}
                     >
                       ▼
                     </span>
@@ -863,9 +908,8 @@ const SellerDashboard = () => {
                   >
                     <h5>Categories</h5>
                     <span
-                      className={`arrow ${
-                        expandedSections.categories ? "expanded" : ""
-                      }`}
+                      className={`arrow ${expandedSections.categories ? "expanded" : ""
+                        }`}
                     >
                       ▼
                     </span>
@@ -915,9 +959,8 @@ const SellerDashboard = () => {
                   >
                     <h5>Stock Status</h5>
                     <span
-                      className={`arrow ${
-                        expandedSections.stockStatus ? "expanded" : ""
-                      }`}
+                      className={`arrow ${expandedSections.stockStatus ? "expanded" : ""
+                        }`}
                     >
                       ▼
                     </span>
@@ -966,9 +1009,8 @@ const SellerDashboard = () => {
                   >
                     <h5>Ratings</h5>
                     <span
-                      className={`arrow ${
-                        expandedSections.ratings ? "expanded" : ""
-                      }`}
+                      className={`arrow ${expandedSections.ratings ? "expanded" : ""
+                        }`}
                     >
                       ▼
                     </span>

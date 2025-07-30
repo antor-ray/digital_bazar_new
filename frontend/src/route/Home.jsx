@@ -22,11 +22,11 @@ const HomePage = () => {
   const [recommendedLimit, setRecommendedLimit] = useState(5);
   const [reviewLimit, setReviewLimit] = useState(3);
 
-  
-  // New states for specific product sections antor change
-  const [popularProducts, setPopularProducts] = useState([]);
-  const [newestArrivals, setNewestArrivals] = useState([]);
-  const [recommendedProducts, setRecommendedProducts] = useState([]);
+
+  // New states for specific product sections antor change
+  const [popularProducts, setPopularProducts] = useState([]);
+  const [newestArrivals, setNewestArrivals] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
 
   // User state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -62,13 +62,13 @@ const HomePage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  const user_email = localStorage.getItem('email') || 'Guest'; // Get email from localStorage or default to 'Guest'
+  const user_name = localStorage.getItem('name') || 'Guest'; // Get email from localStorage or default to 'Guest'
 
 
   const handleKeyDown = (event) => {
     if (event.key === 'Enter') {
       applyFiltersToBackend();
-        // Call your search function
+      // Call your search function
     }
   };
   // Section expansion state
@@ -127,61 +127,60 @@ const HomePage = () => {
     fetchProducts();
   }, []);
 
-    // NEW: Fetch Popular Products antor change
-  useEffect(() => {
-    const fetchPopularProducts = async () => {
-      try {
-        const response = await axios.get("http://localhost:4000/api/v1/popular", {
-          withCredentials: true, // Send cookies for authentication check on backend
-        });
-        setPopularProducts(response.data.products);
-      } catch (error) {
-        console.error("Error fetching popular products:", error);
-        // Handle error (e.g., show a message to the user)
-      }
-    };
-    fetchPopularProducts();
-  }, []); // Empty dependency array means this runs once on mount
+  // NEW: Fetch Popular Products antor change
+  useEffect(() => {
+    const fetchPopularProducts = async () => {
+      try {
+        const response = await axios.get("http://localhost:4000/api/v1/popular", {
+          withCredentials: true, // Send cookies for authentication check on backend
+        });
+        setPopularProducts(response.data.products);
+      } catch (error) {
+        console.error("Error fetching popular products:", error);
+        // Handle error (e.g., show a message to the user)
+      }
+    };
+    fetchPopularProducts();
+  }, []); // Empty dependency array means this runs once on mount
 
 
-  // NEW: Fetch Newest Arrivals
-  useEffect(() => {
-    const fetchNewestArrivals = async () => {
-      try {
-        const response = await axios.get("http://localhost:4000/api/v1/newest", {
-          withCredentials: true, // Send cookies if needed by backend for isAuthenticated
-        });
-        setNewestArrivals(response.data.products);
-      } catch (error) {
-        console.error("Error fetching newest arrivals:", error);
-        // Handle error
-      }
-    };
-    fetchNewestArrivals();
-  }, []); // Empty dependency array means this runs once on mount
+  // NEW: Fetch Newest Arrivals
+  useEffect(() => {
+    const fetchNewestArrivals = async () => {
+      try {
+        const response = await axios.get("http://localhost:4000/api/v1/newest", {
+          withCredentials: true, // Send cookies if needed by backend for isAuthenticated
+        });
+        setNewestArrivals(response.data.products);
+      } catch (error) {
+        console.error("Error fetching newest arrivals:", error);
+        // Handle error
+      }
+    };
+    fetchNewestArrivals();
+  }, []); // Empty dependency array means this runs once on mount
 
 
-// NEW: Fetch Recommended Products
+  // NEW: Fetch Recommended Products
  useEffect(() => {
-   const fetchRecommendedProducts = async () => {
- try {
- // The backend '/api/v1/products/recommended' endpoint will intelligently
- // return personalized recommendations if the user is authenticated,
- // otherwise it will return popular products. We just need to ensure
-        // credentials are sent.
-        const response = await axios.get("http://localhost:4000/api/v1/recommended", {
-          withCredentials: true, // Crucial for backend isAuthenticated middleware
-        });
-        setRecommendedProducts(response.data.products);
-      } catch (error) {
-        console.error("Error fetching recommended products:", error);
-        // Handle error
-      }
-    };
-    // This useEffect will re-run if isLoggedIn state changes, allowing
-    // the recommendation logic to adapt when a user logs in/out.
-    fetchRecommendedProducts();
-  }, [isLoggedIn]);
+  const fetchRecommendedProducts = async () => {
+    try {
+      const endpoint = isLoggedIn
+        ? "http://localhost:4000/api/v1/recommended"    // Authenticated route
+        : "http://localhost:4000/api/v1/popular";        // Guest route
+
+      const response = await axios.get(endpoint, {
+        withCredentials: isLoggedIn, // Only send credentials if logged in
+      });
+
+      setRecommendedProducts(response.data.products);
+    } catch (error) {
+      console.error("Error fetching recommended/popular products:", error);
+    }
+  };
+
+  fetchRecommendedProducts();
+},[isLoggedIn]);
 
   // Add this function to handle sending filters to backend
 
@@ -315,12 +314,19 @@ const HomePage = () => {
   // Notification functions
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/api/notifications", {
-        withCredentials: true,
-      });
+      const res = await axios.post("http://localhost:4000/api/notifications",
+        {
+          role: "customer", 
+        }
+        , {
+          withCredentials: true,
+        });
       setNotifications(res.data.notifications);
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
+       if (err.response?.status === 401) {
+          alert('Please login first');
+        }
     }
   };
 
@@ -448,9 +454,9 @@ const HomePage = () => {
 
       <nav className="navbar">
         <ul className="nav-list">
-         
-           {/* antor change */}
-          <li className="nav-item category-item"> 
+
+          {/* antor change */}
+          <li className="nav-item category-item">
             ☰ Menu
             <ul className="category-dropdown">
               <li
@@ -475,7 +481,7 @@ const HomePage = () => {
             </ul>
 
           </li>
-           <li
+          <li
             className="nav-item menu-item"
             onClick={() => setShowSidebar(!showSidebar)}
           >
@@ -483,13 +489,13 @@ const HomePage = () => {
           </li>
         </ul>
         <div className="nav-actions">
-          {showSidebar  && <input
+          {showSidebar && <input
             type="text"
             className="search-input"
             placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-             onKeyDown={handleKeyDown}
+            onKeyDown={handleKeyDown}
           />};
 
           <span
@@ -523,7 +529,7 @@ const HomePage = () => {
             </span>
           ) : (
             <li className="nav-item login-item">
-              <span className="icon-profile"></span>🙍 {user_email}
+              <span className="icon-profile"></span>🙍 {user_name}
               <ul className="login-dropdown">
                 <li className="login-option" onClick={handleLogout}>
                   Logout
@@ -796,8 +802,8 @@ const HomePage = () => {
                       <p className="error-message">{errorTopSellers}</p>
                     )}
                     {!isLoadingTopSellers &&
-                    !errorTopSellers &&
-                    topSellers.length > 0 ? (
+                      !errorTopSellers &&
+                      topSellers.length > 0 ? (
                       // Changed from ul to div with labels for checkboxes
                       <div>
                         {topSellers.map((seller) => (

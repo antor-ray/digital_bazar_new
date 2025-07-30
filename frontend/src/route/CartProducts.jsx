@@ -27,6 +27,7 @@ const CartProducts = () => {
         console.error("Error fetching cart items:", error);
         if (error.response?.status === 401) {
           alert('Please login first');
+          navigate("/");
         }
       }
     };

@@ -44,7 +44,7 @@ const SellerRegistration = () => {
             if (data.success) {
                 setMessage({ type: 'success', text: 'Registration successful! Please login.' });
                 setTimeout(() => {
-                    window.location.href = '/SellerLogin';
+                    window.location.href = '/login';
                 }, 2000);
             } else {
                 setMessage({ type: 'error', text: data.message || 'Registration failed' });

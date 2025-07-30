@@ -9,7 +9,7 @@ const DeliveryManPage = () => {
   const [deliveredOrders, setDeliveredOrders] = useState([]);
 
 
-  const email = localStorage.getItem('email');
+  const name = localStorage.getItem('name') || 'Guest'; // Get name from localStorage or default to 'Guest'
 
   useEffect(() => {
     fetchProposals();
@@ -106,7 +106,7 @@ const DeliveryManPage = () => {
             className="profile-button"
             onClick={() => setDropdownVisible(!dropdownVisible)}
           >
-            👤 {email}
+            👤 {name}
           </button>
           {dropdownVisible && (
             <ul className="profile-dropdown">

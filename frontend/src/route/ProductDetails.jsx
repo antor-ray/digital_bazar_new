@@ -77,7 +77,14 @@ const ProductDetails = () => {
       console.error("Error adding to cart:", error);
       if (error.response && error.response.status === 401) {
         alert("Please login first!");
-      } else {
+      } 
+      else if(error.response && error.response.status === 402) {
+        alert("Product already in cart");
+      }
+      else if (error.response && error.response.status === 400) {
+        alert("cart not found for this user");
+      }
+      else {
         alert("Failed to add to cart");
       }
     }
@@ -95,7 +102,14 @@ const ProductDetails = () => {
       console.error("Error adding to wishlist:", error);
       if (error.response && error.response.status === 401) {
         alert("Please login first!");
-      } else {
+      }
+      else if (error.response && error.response.status === 409) {
+        alert("Product already in wishlist");
+      }
+      else if (error.response && error.response.status === 400) {
+        alert("Wishlist not found for this user");
+      }
+      else {
         alert("Failed to add to wishlist");
       }
     }
@@ -122,7 +136,14 @@ const ProductDetails = () => {
       console.error("Error submitting review:", error);
       if (error.response && error.response.status === 401) {
         alert("Please login first!");
-      } else {
+      }
+      else if(error.response && error.response.status === 409){
+        alert("You have already reviewed this product.");
+      } 
+      else if (error.response && error.response.status === 403) {
+        alert("You can only review products you have purchased.");  
+      }
+      else {
         alert("Failed to submit review");
       }
     }

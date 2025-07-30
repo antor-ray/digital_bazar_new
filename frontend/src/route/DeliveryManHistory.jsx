@@ -179,8 +179,8 @@ const DeliveryManHistoryPage = () => {
                   </span>
                   <span style={styles.total}>
                     ৳{order.totalordercost || '0.00'} | Status:{" "}
-                    <span style={{ color: order.delivery_status === 'delivered' ? 'green' : (order.delivery_status === 'pending' ? 'orange' : 'grey') }}>
-                        {order.delivery_status ? order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1) : 'Unknown'}
+                    <span style={{ color: order.status === 'delivered' ? 'green' : (order.status === 'pending' ? 'orange' : 'grey') }}>
+                        {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}
                     </span>
                   </span>
                 </div>

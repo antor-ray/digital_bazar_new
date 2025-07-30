@@ -41,7 +41,7 @@ const DeliveryManRegistration = () => {
       }
 
       setSuccess("Registration successful!");
-      navigate("/DeliveryManLogin");
+      navigate("/login");
     } catch (err) {
       console.error("Registration error:", err.message);
       setError(err.message);
