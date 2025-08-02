@@ -698,7 +698,7 @@ const SellerDashboard = () => {
                 <Star className="statIcon yellow" />
                 <div>
                   <p className="statLabel">Average Rating</p>
-                  <p className="statValue">${!isNaN(averageRating) ? averageRating : "0"}</p>
+                  <p className="statValue">{!isNaN(averageRating) ? averageRating : "0"}</p>
                 </div>
               </div>
             </div>

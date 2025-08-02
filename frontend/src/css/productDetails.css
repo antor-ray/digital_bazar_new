@@ -452,7 +452,7 @@
 
 .reviewer-name {
   font-weight: 600;
-  color: #333;
+  color: #f3f0f0;
 }
 
 .review-rating {
@@ -461,26 +461,27 @@
 }
 
 .review-comment {
-  color: #666;
+  color: #e9e6e6;
   line-height: 1.6;
   margin-bottom: 0.5rem;
 }
 
 .review-date {
   font-size: 0.8rem;
-  color: #999;
+  color: #fbf9f9;
 }
 
 /* Similar Products Section */
 .similar-products-section {
   margin-bottom: 3rem;
+  padding:3rem;
 }
 
 .section-title {
   font-size: 1.8rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: #f4f4f4;
 }
 
 .products-row {

@@ -256,19 +256,7 @@ app.put(
   }
 );
 
-//customer notification
-// app.get("/api/notifications", isAuthenticated, authorizeRoles('customer'), async (req, res) => {
-//   const customer_id = req.user.id;
 
-//   const result = await db.query(
-//     `SELECT * FROM notification
-//      WHERE user_id = $1 AND user_type = 'CUSTOMER'
-//      ORDER BY created_at DESC`,
-//     [customer_id]
-//   );
-//   // console.log(customer_id);
-//   res.json({ notifications: result.rows });
-// });
 
 app.post(
   "/api/notifications", isAuthenticated, async (req, res) => {
@@ -925,19 +913,13 @@ app.get("/customerHistory", isAuthenticated, async (req, res) => {
     };
 
     if (sortBy === "most_bought_products") {
-      // This query counts how many times each product has been bought by the customer.
-      // It links to seller info via the 'sell' table.
-      // NOTE: If a product is sold by multiple sellers in the 'sell' table,
-      // this query might arbitrarily pick one seller for 'sellerName'/'sellerPhone'
-      // or return multiple entries if the join on 'sell' is not distinct enough.
-      // For accurate 'seller of THIS specific order item', 'order_item' needs 'seller_id'.
       baseQuery = `
                 SELECT
                     p.product_id,
                     p.product_name,
                     p.short_des, -- Include short description for product context
                     MIN(i.image_url) AS image_url, -- Use MIN to pick one image_url per product if multiple exist
-                    COUNT(oi.product_id) AS total_bought_count,
+                    sum(oi.quantity) AS total_bought_count,
                     COALESCE(MAX(s.business_name), 'N/A') AS seller_name, -- Get a seller name (arbitrary if multiple)
                     COALESCE(MAX(s.phone_number), 'N/A') AS seller_phone -- Get a seller phone (arbitrary if multiple)
                 FROM
