@@ -67,25 +67,28 @@ const ProductDetails = () => {
 
   const handleAddToCart = async () => {
     try {
-      await axios.post(
+      const response = await axios.post(
         "http://localhost:4000/add_to_cart",
         { product_id: id },
         { withCredentials: true }
       );
-      alert("Added to cart!");
+      alert(response.data.message);
     } catch (error) {
       console.error("Error adding to cart:", error);
       if (error.response && error.response.status === 401) {
-        alert("Please login first!");
+        alert(error.response.data.message);
       } 
       else if(error.response && error.response.status === 402) {
-        alert("Product already in cart");
+        alert(error.response.data.message);
       }
       else if (error.response && error.response.status === 400) {
-        alert("cart not found for this user");
+        alert(error.response.data.message);
+      }
+      else if(error.response && error.response.status === 404){
+        alert(error.response.data.message);
       }
       else {
-        alert("Failed to add to cart");
+        alert(error.response.data.message);
       }
     }
   };

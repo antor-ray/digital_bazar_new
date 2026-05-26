@@ -571,15 +571,18 @@ const HomePage = () => {
       {!showSidebar && (
         <section className="hero-section">
           <div className="scrolling-container">
-            {scrollingImages.map((img, index) => (
+            {/* {scrollingImages.map((img, index) => (
               <img
                 key={index}
-                src={img}
+                src={"/images/cloths1.jpg"}
                 alt={`Slide ${index + 1}`}
                 className={`scrolling-image ${index === heroImageIndex ? "active" : ""
                   }`}
               />
-            ))}
+            ))} */}
+
+           
+
           </div>
           <div className="floating-text">
             <h1 className="hero-title">Welcome to Digital Bazaar</h1>

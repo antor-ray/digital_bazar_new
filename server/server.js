@@ -391,9 +391,9 @@ app.get("/deliveryManHistory", isAuthenticated, async (req, res) => {
     } else if (sortBy === "lowest_total") {
       baseQuery += ` ORDER BY co.total_cost ASC`;
     } else if (sortBy === "delivery_date_newest") { // New sort option for delivery date
-        baseQuery += ` ORDER BY co.date DESC NULLS LAST`;
+      baseQuery += ` ORDER BY co.date DESC NULLS LAST`;
     } else if (sortBy === "delivery_date_oldest") { // New sort option for delivery date
-        baseQuery += ` ORDER BY co.date ASC NULLS FIRST`;
+      baseQuery += ` ORDER BY co.date ASC NULLS FIRST`;
     }
     else {
       baseQuery += ` ORDER BY co.date DESC`; // Default sort
@@ -624,6 +624,12 @@ app.post("/add_to_cart", isAuthenticated, authorizeRoles('customer'), async (req
     const existingItem = await db.query("SELECT * FROM cart_item WHERE product_id = $1 AND cart_id = $2", [product_id, cart_id]);
     if (existingItem.rows.length > 0) {
       return res.status(402).json({ message: "Product already in cart" });
+    }
+
+    //check if the product is out of stock
+    const isOutofStock = await db.query("SELECT sell_id FROM sell WHERE stock > 0 AND product_id = $1",[product_id]);
+    if(isOutofStock.rows.length == 0){
+      return res.status(404).json({message:"Product is out of stock"});
     }
 
     await db.query("insert into cart_item(product_id,cart_id) values($1,$2)", [
@@ -3083,8 +3089,8 @@ app.get("/api/v1/recommended", isAuthenticated, async (req, res) => {
     console.log("Fetched recommended products successfully.");
   } catch (error) {
     console.error("Error fetching recommended products:", error);
-    res.status(500).json({ message: "Failed to fetch recommended products." });
-  }
+    res.status(500).json({ message: "Failed to fetch recommended products." });
+  }
 });
 
 const port = process.env.PORT || 3001;
