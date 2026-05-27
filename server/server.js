@@ -17,7 +17,7 @@ const isAuthenticated = require("./middleware/isAuthenticated");
 //
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000","https://digital-bazar-final.netlify.app"],
     credentials: true,
   })
 );
