@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import icon from "../images/Icon.png"; // Adjust path if your image is elsewhere
+import API_URL from "../config";  // adjust path as needed
 import { ArrowUpWideNarrow, ArrowDownWideNarrow, Phone, MapPin } from "lucide-react"; // Importing icons
 
 const DeliveryManHistoryPage = () => {
@@ -27,7 +28,7 @@ const DeliveryManHistoryPage = () => {
     const checkAuth = async () => {
       try {
         // This endpoint verifies if the delivery man is authenticated
-        const res = await axios.get("http://localhost:4000/isAuthenticate", {
+        const res = await axios.get(`${API_URL}/isAuthenticate`, {
           withCredentials: true, // Important for sending cookies
         });
         setIsLoggedIn(true);
@@ -56,7 +57,7 @@ const DeliveryManHistoryPage = () => {
 
       // This endpoint fetches the delivery history from the backend
       const res = await axios.get(
-        `http://localhost:4000/deliveryManHistory?${queryParams.toString()}`,
+        `${API_URL}/deliveryManHistory?${queryParams.toString()}`,
         {
           withCredentials: true, // Important for sending cookies
         }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import "../css/Login.css";
+import API_URL from "../config";  // adjust path as needed
 
 const SellerRegistration = () => {
     const [registerData, setRegisterData] = useState({
@@ -34,7 +35,7 @@ const SellerRegistration = () => {
 
         try {
             const { confirmPassword, ...dataToSend } = registerData;
-            const response = await fetch('http://localhost:4000/SellerRegister', {
+            const response = await fetch(`${API_URL}/SellerRegister`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

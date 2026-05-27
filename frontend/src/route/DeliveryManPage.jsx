@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../css/DeliveryManPage.css";
+import API_URL from "../config";  // adjust path as needed
 import { useNavigate } from "react-router-dom";
 
 const DeliveryManPage = () => {
@@ -26,7 +27,7 @@ const DeliveryManPage = () => {
 
     const handlePopState = async () => {
       try {
-        await axios.post("http://localhost:4000/deliveryman/logout", {}, {
+        await axios.post(`${API_URL}/deliveryman/logout`, {}, {
           withCredentials: true,
         });
         console.log("Logged out due to back button.");
@@ -47,7 +48,7 @@ const DeliveryManPage = () => {
 
   const fetchProposals = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/proposal", {
+      const res = await axios.get(`${API_URL}/proposal`, {
         withCredentials: true,
       });
       setProposals(res.data);
@@ -59,7 +60,7 @@ const DeliveryManPage = () => {
   const respondToProposal = async (orderId, response) => {
     try {
       await axios.post(
-        "http://localhost:4000/respond",
+        `${API_URL}/respond`,
         { orderId, response },
         { withCredentials: true }
       );
@@ -72,7 +73,7 @@ const DeliveryManPage = () => {
   const markAsDelivered = async (orderId) => {
     try {
       await axios.post(
-        "http://localhost:4000/mark-delivered",
+        `${API_URL}/mark-delivered`,
         { orderId },
         { withCredentials: true }
       );
@@ -86,7 +87,7 @@ const DeliveryManPage = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:4000/deliveryman/logout", {}, {
+      await axios.post(`${API_URL}/deliveryman/logout`, {}, {
         withCredentials: true,
       });
       navigate("/");

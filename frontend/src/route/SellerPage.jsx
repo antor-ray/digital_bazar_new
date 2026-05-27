@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, use } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 
 import {
   Plus,
@@ -106,7 +107,7 @@ const SellerDashboard = () => {
   // Notification functions
   const fetchNotifications = async () => {
     try {
-      const res = await axios.post("http://localhost:4000/api/notifications",
+      const res = await axios.post(`${API_URL}/api/notifications`,
         {
           role: "seller",
         }
@@ -124,7 +125,7 @@ const SellerDashboard = () => {
   const fetchSellerProducts = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:4000/SellerPage/products",
+        `${API_URL}/SellerPage/products`,
         {
           withCredentials: true,
         }
@@ -218,7 +219,7 @@ const SellerDashboard = () => {
         queryParams.append("maxDiscount", discountRange.max);
       }
 
-      const filterUrl = `http://localhost:4000/api/v1/sellerProductFilter?${queryParams.toString()}`;
+      const filterUrl = `${API_URL}/api/v1/sellerProductFilter?${queryParams.toString()}`;
       console.log("Filter URL:", filterUrl);
 
       const response = await axios.get(filterUrl);
@@ -261,7 +262,7 @@ const SellerDashboard = () => {
   useEffect(() => {
     const checkAuthSeller = async () => {
       try {
-        const res = await fetch("http://localhost:4000/getSellerInfo", {
+        const res = await fetch(`${API_URL}/getSellerInfo`, {
           method: "GET",
           credentials: "include",
         });
@@ -285,7 +286,7 @@ const SellerDashboard = () => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:4000/logout",
+        `${API_URL}/logout`,
         {},
         { withCredentials: true }
       );
@@ -306,7 +307,7 @@ const SellerDashboard = () => {
       }
       try {
         const response = await axios.get(
-          `http://localhost:4000/api/v1/sellerStats/ordersThisMonth?sellerId=${sellerId}`,
+          `${API_URL}/api/v1/sellerStats/ordersThisMonth?sellerId=${sellerId}`,
           {
             withCredentials: true,
           }
@@ -340,7 +341,7 @@ const SellerDashboard = () => {
     const fetchSellerRating = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:4000/api/seller/ratings?sellerId=${sellerId}`,
+          `${API_URL}/api/seller/ratings?sellerId=${sellerId}`,
         );
         setAverageRating(response.data.average_rating);
         console.log("Fetched seller rating:", response.data.average_rating);
@@ -448,8 +449,8 @@ const SellerDashboard = () => {
 
     try {
       const url = isEditing
-        ? `http://localhost:4000/SellerPage/updateProduct/${editingProductId}`
-        : "http://localhost:4000/SellerPage/addProduct";
+        ? `${API_URL}/SellerPage/updateProduct/${editingProductId}`
+        : `${API_URL}/SellerPage/addProduct`;
 
       const method = isEditing ? "put" : "post";
 
@@ -492,7 +493,7 @@ const SellerDashboard = () => {
 
     try {
       const response = await axios.delete(
-        `http://localhost:4000/SellerPage/deleteProduct/${id}`,
+        `${API_URL}/SellerPage/deleteProduct/${id}`,
         {
           withCredentials: true,
         }
@@ -525,9 +526,9 @@ const SellerDashboard = () => {
         <img
           src={
             product.images && product.images.length > 0
-              ? product.images[0].startsWith("http")
+                ? product.images[0].startsWith("http")
                 ? product.images[0]
-                : `http://localhost:4000/images/${product.images[0]}`
+                : `${API_URL}/images/${product.images[0]}`
               : "https://placehold.co/300x200?text=No+Image"
           }
           alt={product.name}

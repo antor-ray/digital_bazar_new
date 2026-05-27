@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_URL from "../config";  // adjust path as needed
 import { useNavigate } from 'react-router-dom';
 
 const CustomerRegistration = () => {
@@ -27,7 +28,7 @@ const CustomerRegistration = () => {
     setSuccess('');
 
     try {
-      const res = await fetch("http://localhost:4000/register", {  // 🔁 Replace PORT with your backend port
+      const res = await fetch(`${API_URL}/register`, {  // 🔁 Replace PORT with your backend port
         method: "POST",
         headers: {
           "Content-Type": "application/json"

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios, { all } from "axios";
 import "../css/homepage.css";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 
 
 const HomePage = () => {
@@ -96,7 +97,7 @@ const HomePage = () => {
       setIsLoadingTopSellers(true);
       setErrorTopSellers(null);
       try {
-        const response = await fetch("http://localhost:4000/api/top-sellers");
+        const response = await fetch(`${API_URL}/api/top-sellers`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -117,7 +118,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get("http://localhost:4000/api/v1/products");
+        const res = await axios.get(`${API_URL}/api/v1/products`);
         setAllProducts(res.data.products);
         setFilteredProducts(res.data.products);
       } catch (err) {
@@ -131,7 +132,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchPopularProducts = async () => {
       try {
-        const response = await axios.get("http://localhost:4000/api/v1/popular", {
+        const response = await axios.get(`${API_URL}/api/v1/popular`, {
           withCredentials: true, // Send cookies for authentication check on backend
         });
         setPopularProducts(response.data.products);
@@ -148,7 +149,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchNewestArrivals = async () => {
       try {
-        const response = await axios.get("http://localhost:4000/api/v1/newest", {
+        const response = await axios.get(`${API_URL}/api/v1/newest`, {
           withCredentials: true, // Send cookies if needed by backend for isAuthenticated
         });
         setNewestArrivals(response.data.products);
@@ -166,8 +167,8 @@ const HomePage = () => {
   const fetchRecommendedProducts = async () => {
     try {
       const endpoint = isLoggedIn
-        ? "http://localhost:4000/api/v1/recommended"    // Authenticated route
-        : "http://localhost:4000/api/v1/popular";        // Guest route
+        ? `${API_URL}/api/v1/recommended`    // Authenticated route
+        : `${API_URL}/api/v1/popular`;        // Guest route
 
       const response = await axios.get(endpoint, {
         withCredentials: isLoggedIn, // Only send credentials if logged in
@@ -228,7 +229,7 @@ const HomePage = () => {
 
       // Make the API call with all filters
       const response = await axios.get(
-        `http://localhost:4000/api/v1/productFilter?${queryParams.toString()}`
+        `${API_URL}/api/v1/productFilter?${queryParams.toString()}`
       );
 
       // Update the filtered products
@@ -263,7 +264,7 @@ const HomePage = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        await axios.get("http://localhost:4000/isAuthenticate", {
+        await axios.get(`${API_URL}/isAuthenticate`, {
           withCredentials: true,
         });
         setIsLoggedIn(true);
@@ -314,7 +315,7 @@ const HomePage = () => {
   // Notification functions
   const fetchNotifications = async () => {
     try {
-      const res = await axios.post("http://localhost:4000/api/notifications",
+      const res = await axios.post(`${API_URL}/api/notifications`,
         {
           role: "customer", 
         }
@@ -334,7 +335,7 @@ const HomePage = () => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:4000/logout",
+        `${API_URL}/logout`,
         {},
         { withCredentials: true }
       );
@@ -383,7 +384,7 @@ const HomePage = () => {
                 <img
                   src={
                     product.image_url
-                      ? `http://localhost:4000/images/${product.image_url}`
+                      ? `${API_URL}/images/${product.image_url}`
                       : "https://via.placeholder.com/250?text=No+Image"
                   }
                   alt={product.product_name}

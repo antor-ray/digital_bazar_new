@@ -3,6 +3,7 @@ import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom"; // Import useParams to get sellerId from URL
 import { ArrowUpWideNarrow, ArrowDownWideNarrow, Package } from "lucide-react"; // Icons
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 import {
   Plus,
   Edit,
@@ -47,7 +48,7 @@ const SellerSellingHistoryPage = () => {
       queryParams.append("status", historyType);
 
       const response = await axios.get(
-        `http://localhost:4000/api/v1/sellerSellingHistory?${queryParams.toString()}`,
+        `${API_URL}/api/v1/sellerSellingHistory?${queryParams.toString()}`,
         {
           withCredentials: true,
         }
@@ -74,7 +75,7 @@ const SellerSellingHistoryPage = () => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:4000/logout",
+        `${API_URL}/logout`,
         {},
         { withCredentials: true }
       );
@@ -92,7 +93,7 @@ const SellerSellingHistoryPage = () => {
 
     try {
       const response = await axios.delete(
-        `http://localhost:4000/SellerPage/deleteProduct/${id}`,
+        `${API_URL}/SellerPage/deleteProduct/${id}`,
         {
           withCredentials: true,
         }
@@ -120,7 +121,7 @@ const SellerSellingHistoryPage = () => {
 
     try {
       const response = await axios.post(
-        `http://localhost:4000/SellerPage/restoreProduct/${id}`,
+        `${API_URL}/SellerPage/restoreProduct/${id}`,
         {},
         {
           withCredentials: true,

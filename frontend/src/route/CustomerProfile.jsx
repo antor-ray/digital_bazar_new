@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../css/CustomerProfile.css';
+import API_URL from "../config";  // adjust path as needed
 
 const CustomerProfile = () => {
   const [customer, setCustomer] = useState({
@@ -21,7 +22,7 @@ const CustomerProfile = () => {
 
   const fetchCustomerData = async () => {
     try {
-        const response =await axios.get("http://localhost:4000/api/customer/profile",{
+        const response =await axios.get(`${API_URL}/api/customer/profile`,{
             withCredentials:true,
         });
       setCustomer(response.data.customer[0]);
@@ -36,7 +37,7 @@ const CustomerProfile = () => {
 
   const handleSave = async () => {
     try {
-      await axios.put("http://localhost:4000/api/customer/profile", customer,{
+      await axios.put(`${API_URL}/api/customer/profile`, customer,{
         withCredentials:true,
       }); 
       setEditing(false);

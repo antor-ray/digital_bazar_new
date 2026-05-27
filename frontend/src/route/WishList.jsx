@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import "../css/WishList.css";
 import axios, { all } from "axios";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 //import profileIcon from "../images/profile-icon.png"; // Add a profile icon image
 
 const WishlistPage = () => {
@@ -14,7 +15,7 @@ const WishlistPage = () => {
   useEffect(() => {
     const fetchWishlist = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/v1/wishlist", {
+        const res = await fetch(`${API_URL}/api/v1/wishlist`, {
           credentials: "include",
         });
         const data = await res.json();
@@ -30,7 +31,7 @@ const WishlistPage = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        await axios.get("http://localhost:4000/isAuthenticate", {
+        await axios.get(`${API_URL}/isAuthenticate`, {
           withCredentials: true,
         });
         setIsLoggedIn(true);
@@ -44,7 +45,7 @@ const WishlistPage = () => {
   const handleRemove = async (productId) => {
     try {
       const res = await fetch(
-        `http://localhost:4000/api/v1/wishlist/remove/${productId}`,
+        `${API_URL}/api/v1/wishlist/remove/${productId}`,
         {
           method: "DELETE",
           credentials: "include", // Required to send cookies (auth)
@@ -103,7 +104,7 @@ const WishlistPage = () => {
                   <img
                     src={
                       item.image_url && item.image_url.length > 0
-                        ? `http://localhost:4000/images/${item.image_url}`
+                        ? `${API_URL}/images/${item.image_url}`
                         : "https://via.placeholder.com/100"
                     }
                     alt={item.product_name}

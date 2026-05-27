@@ -2,6 +2,8 @@
 
 const defaults = require('./defaults')
 
+const { isDate } = require('util/types')
+
 function escapeElement(elementRepresentation) {
   const escaped = elementRepresentation.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
@@ -15,28 +17,23 @@ function arrayString(val) {
   let result = '{'
   for (let i = 0; i < val.length; i++) {
     if (i > 0) {
-      result = result + ','
+      result += ','
     }
-    if (val[i] === null || typeof val[i] === 'undefined') {
-      result = result + 'NULL'
-    } else if (Array.isArray(val[i])) {
-      result = result + arrayString(val[i])
-    } else if (ArrayBuffer.isView(val[i])) {
-      let item = val[i]
+    let item = val[i]
+    if (item == null) {
+      result += 'NULL'
+    } else if (Array.isArray(item)) {
+      result += arrayString(item)
+    } else if (ArrayBuffer.isView(item)) {
       if (!(item instanceof Buffer)) {
-        const buf = Buffer.from(item.buffer, item.byteOffset, item.byteLength)
-        if (buf.length === item.byteLength) {
-          item = buf
-        } else {
-          item = buf.slice(item.byteOffset, item.byteOffset + item.byteLength)
-        }
+        item = Buffer.from(item.buffer, item.byteOffset, item.byteLength)
       }
       result += '\\\\x' + item.toString('hex')
     } else {
-      result += escapeElement(prepareValue(val[i]))
+      result += escapeElement(prepareValue(item))
     }
   }
-  result = result + '}'
+  result += '}'
   return result
 }
 
@@ -54,13 +51,9 @@ const prepareValue = function (val, seen) {
       return val
     }
     if (ArrayBuffer.isView(val)) {
-      const buf = Buffer.from(val.buffer, val.byteOffset, val.byteLength)
-      if (buf.length === val.byteLength) {
-        return buf
-      }
-      return buf.slice(val.byteOffset, val.byteOffset + val.byteLength) // Node.js v4 does not support those Buffer.from params
+      return Buffer.from(val.buffer, val.byteOffset, val.byteLength)
     }
-    if (val instanceof Date) {
+    if (isDate(val)) {
       if (defaults.parseInputDatesAsUTC) {
         return dateToStringUTC(val)
       } else {
@@ -172,6 +165,14 @@ const escapeIdentifier = function (str) {
 const escapeLiteral = function (str) {
   let hasBackslash = false
   let escaped = "'"
+
+  if (str == null) {
+    return "''"
+  }
+
+  if (typeof str !== 'string') {
+    return "''"
+  }
 
   for (let i = 0; i < str.length; i++) {
     const c = str[i]

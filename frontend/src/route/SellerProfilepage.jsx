@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 
 import {
   Mail,
@@ -75,7 +76,7 @@ const SellerProfilePage = () => {
   useEffect(() => {
     const fetchSeller = async () => {
       try {
-        const res = await fetch("http://localhost:4000/SellerProfile", {
+        const res = await fetch(`${API_URL}/SellerProfile`, {
           method: "GET",
           credentials: "include",
         });
@@ -110,7 +111,7 @@ const SellerProfilePage = () => {
   // save profile
   const handleSaveProfile = async () => {
     try {
-      const response = await fetch("http://localhost:4000/SellerEditProfile", {
+      const response = await fetch(`${API_URL}/SellerEditProfile`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -167,7 +168,7 @@ const SellerProfilePage = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:4000/SellerEditPassword", {
+      const response = await fetch(`${API_URL}/SellerEditPassword`, {
         method: "PUT",
         credentials: "include", // ✅ Important fix
         headers: {

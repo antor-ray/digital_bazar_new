@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_URL from "../config";  // adjust path as needed
 import { useNavigate } from 'react-router-dom';
 
 const DeliveryManRegistration = () => {
@@ -26,7 +27,7 @@ const DeliveryManRegistration = () => {
     setSuccess('');
 
     try {
-      const res = await fetch("http://localhost:4000/registerDeliveryMan", {
+      const res = await fetch(`${API_URL}/registerDeliveryMan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

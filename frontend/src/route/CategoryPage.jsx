@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../css/CategoryPage.css";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 
 const CategoryPage = () => {
   const { categoryName } = useParams();
@@ -18,7 +19,7 @@ const CategoryPage = () => {
     const fetchProducts = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:4000/categoryProducts/${categoryName}`
+          `${API_URL}/categoryProducts/${categoryName}`
         );
         setProducts(res.data.products);
       } catch (err) {
@@ -121,7 +122,7 @@ const CategoryPage = () => {
                 <img
                   src={
                     product.image_url
-                      ? `http://localhost:4000/images/${product.image_url}`
+                      ? `${API_URL}/images/${product.image_url}`
                       : "https://via.placeholder.com/250?text=No+Image"
                   }
                   alt={product.product_name}

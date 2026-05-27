@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../css/cart.css";
 import icon from "../images/Icon.png"
+import API_URL from "../config";  // adjust path as needed
 
 const CartProducts = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -13,7 +14,7 @@ const CartProducts = () => {
   useEffect(() => {
     const fetchCartItems = async () => {
       try {
-        const res = await axios.get("http://localhost:4000/cartItems", {
+        const res = await axios.get(`${API_URL}/cartItems`, {
           withCredentials: true,
         });
 
@@ -67,7 +68,7 @@ const CartProducts = () => {
   // Delete cart item
   const handleDelete = async (productId) => {
     try {
-      await axios.delete("http://localhost:4000/delete/cart/item", {
+      await axios.delete(`${API_URL}/delete/cart/item`, {
         data: { product_id: productId },
         withCredentials: true,
         headers: {

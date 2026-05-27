@@ -66,7 +66,8 @@ class Result {
       const rawValue = rowData[i]
       const field = this.fields[i].name
       if (rawValue !== null) {
-        row[field] = this._parsers[i](rawValue)
+        const v = this.fields[i].format === 'binary' ? Buffer.from(rawValue) : rawValue
+        row[field] = this._parsers[i](v)
       } else {
         row[field] = null
       }
@@ -88,7 +89,7 @@ class Result {
       this._parsers = new Array(fieldDescriptions.length)
     }
 
-    const row = {}
+    const row = Object.create(null)
 
     for (let i = 0; i < fieldDescriptions.length; i++) {
       const desc = fieldDescriptions[i]

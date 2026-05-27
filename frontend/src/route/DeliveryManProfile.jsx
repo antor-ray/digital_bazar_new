@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../css/DeliveryManProfile.css';
+import API_URL from "../config";  // adjust path as needed
 
 const DeliveryManProfile = () => {
     const [deliveryMan, setDeliveryMan] = useState({
@@ -20,7 +21,7 @@ const DeliveryManProfile = () => {
 
     const fetchDeliveryManData = async () => {
         try {
-            const response = await axios.get('http://localhost:4000/api/deliveryman/profile', {
+            const response = await axios.get(`${API_URL}/api/deliveryman/profile`, {
                 withCredentials: true,
             });
             setDeliveryMan(response.data.deliveryMan[0]); // Assuming deliveryMan is returned as array
@@ -35,7 +36,7 @@ const DeliveryManProfile = () => {
 
     const handleSave = async () => {
         try {
-            await axios.put('http://localhost:4000/api/deliveryman/profile', deliveryMan, {
+            await axios.put(`${API_URL}/api/deliveryman/profile`, deliveryMan, {
                 withCredentials: true,
             });
             setEditing(false);

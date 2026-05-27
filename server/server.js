@@ -3093,6 +3093,14 @@ app.get("/api/v1/recommended", isAuthenticated, async (req, res) => {
   }
 });
 
+
+app.get("/test", async (req, res) => {
+   const result = await db.query("SELECT NOW()");
+   res.json(result.rows);
+});
+
+
+
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Server is running and listening on port ${port}`);

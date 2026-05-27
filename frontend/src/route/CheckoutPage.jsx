@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "../css/checkout.css";
+import API_URL from "../config";  // adjust path as needed
 
 
 const CheckoutPage = () => {
@@ -48,7 +49,7 @@ const CheckoutPage = () => {
 
         try {
             const orderResponse = await axios.post(
-                "http://localhost:4000/api/orders",
+                `${API_URL}/api/orders`,
                 {
                     address,
                     grandTotal,
@@ -60,14 +61,14 @@ const CheckoutPage = () => {
             const orderId = orderResponse.data.orderId;
 
             // console.log(orderId);
-            const propres = await axios.post("http://localhost:4000/deliveryman/sendproposal", {
+            const propres = await axios.post(`${API_URL}/deliveryman/sendproposal`, {
                 orderId,
                 address
             }, { withCredentials: true });
 
             // transfer items from cart to order_items
             const transferItems = await axios.post(
-                "http://localhost:4000/transfer/item",
+                `${API_URL}/transfer/item`,
                 {
                     orderId,
                     cartItems,
@@ -83,7 +84,7 @@ const CheckoutPage = () => {
                 navigate("/");
             } else {
                 const paymentRes = await axios.post(
-                    "http://localhost:4000/ssl-request",
+                    `${API_URL}/ssl-request`,
                     {
                         amount: grandTotal,
                         address,

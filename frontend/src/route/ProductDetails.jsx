@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../css/productDetails.css";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -19,7 +20,7 @@ const ProductDetails = () => {
     const fetchProduct = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:4000/api/v1/products/${id}`,
+          `${API_URL}/api/v1/products/${id}`,
           {
             withCredentials: true,
           }
@@ -38,7 +39,7 @@ const ProductDetails = () => {
   const fetchSimilarProducts = async (tags) => {
     try {
       const res = await axios.get(
-        `http://localhost:4000/api/v1/products/similar/${id}?tags=${tags}`,
+        `${API_URL}/api/v1/products/similar/${id}?tags=${tags}`,
         {
           withCredentials: true,
         }
@@ -54,7 +55,7 @@ const ProductDetails = () => {
   const fetchReviews = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:4000/api/v1/products/${id}/reviews?customerId=${customerId}`,
+        `${API_URL}/api/v1/products/${id}/reviews?customerId=${customerId}`,
         {
           withCredentials: true,
         }
@@ -68,7 +69,7 @@ const ProductDetails = () => {
   const handleAddToCart = async () => {
     try {
       const response = await axios.post(
-        "http://localhost:4000/add_to_cart",
+        `${API_URL}/add_to_cart`,
         { product_id: id },
         { withCredentials: true }
       );
@@ -96,7 +97,7 @@ const ProductDetails = () => {
   const handleAddToWishlist = async () => {
     try {
       await axios.post(
-        "http://localhost:4000/add_to_wishlist",
+        `${API_URL}/add_to_wishlist`,
         { product_id: id },
         { withCredentials: true }
       );
@@ -124,7 +125,7 @@ const ProductDetails = () => {
     e.preventDefault();
     try {
       await axios.post(
-        `http://localhost:4000/api/v1/products/${productId}/reviews`,
+        `${API_URL}/api/v1/products/${productId}/reviews`,
         {
           rating: newReview.rating,
           comment: newReview.comment,
@@ -184,7 +185,7 @@ const ProductDetails = () => {
         <div className="product-images-section">
           <div className="main-image-container">
             <img
-              src={`http://localhost:4000/images/${productImages[selectedImage]}`}
+              src={`${API_URL}/images/${productImages[selectedImage]}`}
               alt={product.product_name}
               className="details-img"
             />
@@ -193,7 +194,7 @@ const ProductDetails = () => {
             {productImages.map((image, index) => (
               <img
                 key={index}
-                src={`http://localhost:4000/images/${image}`}
+                src={`${API_URL}/images/${image}`}
                 alt={`${product.product_name} ${index + 1}`}
                 className={`thumbnail ${selectedImage === index ? "active" : ""
                   }`}
@@ -391,7 +392,7 @@ const ProductDetails = () => {
                 <img
                   src={
                     product.image_url
-                      ? `http://localhost:4000/images/${product.image_url}`
+                      ? `${API_URL}/images/${product.image_url}`
                       : "https://via.placeholder.com/250?text=No+Image"
                   }
                   alt={product.product_name}

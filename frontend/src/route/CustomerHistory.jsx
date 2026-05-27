@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import icon from "../images/Icon.png";
+import API_URL from "../config";  // adjust path as needed
 import { ArrowUpWideNarrow, ArrowDownWideNarrow, Phone } from "lucide-react";
 
 const CustomerHistoryPage = () => {
@@ -27,7 +28,7 @@ const CustomerHistoryPage = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await axios.get("http://localhost:4000/isAuthenticate", {
+        const res = await axios.get(`${API_URL}/isAuthenticate`, {
           withCredentials: true,
         });
         setIsLoggedIn(true);
@@ -50,7 +51,7 @@ const CustomerHistoryPage = () => {
       queryParams.append("sortBy", sortType);
 
       const res = await axios.get(
-        `http://localhost:4000/customerHistory?${queryParams.toString()}`,
+        `${API_URL}/customerHistory?${queryParams.toString()}`,
         {
           withCredentials: true,
         }
@@ -103,7 +104,7 @@ const CustomerHistoryPage = () => {
           <div key={index} style={styles.card}>
             <div style={styles.productCardHeader}>
                 <img
-                    src={`http://localhost:4000/images/${product.image_url}` || 'https://placehold.co/80x80/aabbcc/ffffff?text=No+Image'}
+                    src={`${API_URL}/images/${product.image_url}` || 'https://placehold.co/80x80/aabbcc/ffffff?text=No+Image'}
                     alt={product.product_name}
                     style={styles.productImage}
                 />
